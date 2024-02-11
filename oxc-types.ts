@@ -45,9 +45,13 @@ export interface BooleanLiteral extends Span {
 }
 
 export interface TSAbstractPropertyDefinition
-  extends Omit<PropertyDefinition, "type"> {}
+  extends Omit<PropertyDefinition, "type"> {
+  type: "TSAbstractPropertyDefinition";
+}
 export interface TSAbstractMethodDefinition
-  extends Omit<MethodDefinition, "type"> {}
+  extends Omit<MethodDefinition, "type"> {
+  type: "TSAbstractMethodDefinition";
+}
 
 export type ImportOrExportKind = { type: "value" } | { type: "type" };
 
@@ -106,12 +110,10 @@ export interface TSExternalModuleReference extends Span {
   expression: StringLiteral;
 }
 
-export type TSModuleReference = TSTypeName | TSExternalModuleReference;
-
 export interface TSImportEqualsDeclaration extends Span {
   type: "TSImportEqualsDeclaration";
   id: BindingIdentifier;
-  moduleReference: TSModuleReference;
+  moduleReference: TSTypeName | TSExternalModuleReference;
   isExport: boolean;
   importKind: ImportOrExportKind;
 }
@@ -810,10 +812,8 @@ export interface ClassBody extends Span {
   body: ClassElement[];
 }
 
-export type ClassType = "ClassDeclaration" | "ClassExpression";
-
 export interface Class extends Span {
-  type: ClassType;
+  type: "ClassDeclaration" | "ClassExpression";
   id: BindingIdentifier | null;
   superClass: Expression | null;
   body: ClassBody;
@@ -893,15 +893,15 @@ export interface FunctionExpression extends Span {
 }
 
 export interface TSDeclareFunction extends Span {
-    type: "TSDeclareFunction";
-    id: BindingIdentifier | null;
-    body: FunctionBody;
-    params: FormalParameters;
-    generator: boolean;
-    async: boolean;
-    typeParameters: TSTypeParameterInstantiation | null;
-    returnType: TSTypeAnnotation | null;
-    modifiers: Modifiers;
+  type: "TSDeclareFunction";
+  id: BindingIdentifier | null;
+  body: FunctionBody;
+  params: FormalParameters;
+  generator: boolean;
+  async: boolean;
+  typeParameters: TSTypeParameterInstantiation | null;
+  returnType: TSTypeAnnotation | null;
+  modifiers: Modifiers;
 }
 
 export type Function =
@@ -1553,6 +1553,8 @@ export type Node =
   | NullLiteral
   | BooleanLiteral
   | TSInstantiationExpression
+  | TSAbstractPropertyDefinition
+  | TSAbstractMethodDefinition
   | TSNamespaceExportDeclaration
   | TSExportAssignment
   | Modifier
@@ -1575,13 +1577,11 @@ export type Node =
   | TSModuleDeclaration
   | TSTypePredicate
   | TSInterfaceHeritage
-  | TSIndexSignatureName
   | TSConstructSignatureDeclaration
   | TSMethodSignature
   | TSCallSignatureDeclaration
   | TSIndexSignature
   | TSPropertySignature
-  | TSInterfaceBody
   | TSInterfaceDeclaration
   | TSClassImplements
   | TSTypeAliasDeclaration
@@ -1618,7 +1618,6 @@ export type Node =
   | TSEnumMember
   | TSEnumBody
   | TSEnumDeclaration
-  | TSThisParameter
   | JSXText
   | JSXSpreadChild
   | JSXIdentifier
