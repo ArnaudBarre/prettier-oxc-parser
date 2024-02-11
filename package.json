@@ -1,0 +1,22 @@
+{
+  "name": "prettier-oxc-parser",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+    "postinstall": "patch-package"
+  },
+  "peerDependencies": {
+    "prettier": "^3"
+  },
+  "dependencies": {
+    "oxc-parser": "^0.3.0"
+  },
+  "devDependencies": {
+    "@arnaud-barre/tnode": "^0.19.2",
+    "@types/bun": "^1.0.5",
+    "@typescript-eslint/types": "^6.21.0",
+    "patch-package": "^8.0.0",
+    "prettier": "^3.2.5",
+    "typescript": "^5.0.0"
+  }
+}
