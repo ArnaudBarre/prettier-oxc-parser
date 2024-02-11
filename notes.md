@@ -2,7 +2,6 @@
 
 ## oxc-parser package
 
-- Missing `/parser.<platform>.node`, see patch
 - JSON.parse should be done by the wrapper & program should be typed with types from the [#2158](https://github.com/oxc-project/oxc/pull/2158) (see `oxcParse` util)
 
 ## AST types issues
