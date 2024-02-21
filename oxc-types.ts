@@ -1616,7 +1616,6 @@ export type Node =
   | TSLiteralType
   | TSTypeAnnotation
   | TSEnumMember
-  | TSEnumBody
   | TSEnumDeclaration
   | JSXText
   | JSXSpreadChild
@@ -1638,7 +1637,6 @@ export type Node =
   | ExportDefaultDeclaration
   | ExportNamedDeclaration
   | ImportAttribute
-  | WithClause
   | ImportNamespaceSpecifier
   | ImportDefaultSpecifier
   | ImportSpecifier
@@ -1649,7 +1647,6 @@ export type Node =
   | PrivateIdentifier
   | PropertyDefinition
   | MethodDefinition
-  | ClassBody
   | Class
   | YieldExpression
   | ArrowExpression

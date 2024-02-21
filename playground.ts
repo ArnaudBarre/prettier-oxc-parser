@@ -1,24 +1,28 @@
-#!/usr/bin/env tnode
+#!/usr/bin/env bun
+import { Glob } from "bun";
+import { readFileSync, writeFileSync } from "node:fs";
 import { format } from "prettier";
 import * as plugin from "./index.ts";
-import { readFileSync, writeFileSync } from "node:fs";
 import { oxcParse, oxcToESTree } from "./utils.ts";
 
-const code = readFileSync(
-  "node_modules/@typescript-eslint/types/dist/generated/ast-spec.d.ts",
-  "utf-8",
-);
+const glob = new Glob("**/*.ts");
 
-const ast = oxcParse(code, { sourceFilename: "playground.ts" });
-writeFileSync("tmp/ast.json", JSON.stringify(ast, null, 2));
-oxcToESTree(ast);
-writeFileSync("tmp/ast-updated.json", JSON.stringify(ast, null, 2));
+for await (const file of glob.scan(".")) {
+  console.log(file);
 
-writeFileSync(
-  "tmp/with-plugin.ts",
-  await format(code, { filepath: "example.ts", plugins: [plugin] }),
-);
-writeFileSync(
-  "tmp/without-plugin.ts",
-  await format(code, { filepath: "example.ts" }),
-);
+  const code = readFileSync(file, "utf-8");
+
+  const ast = oxcParse(code, { sourceFilename: "playground.ts" });
+  writeFileSync("tmp/ast.json", JSON.stringify(ast, null, 2));
+  oxcToESTree(ast);
+  writeFileSync("tmp/ast-updated.json", JSON.stringify(ast, null, 2));
+
+  writeFileSync(
+    "tmp/without-plugin.ts",
+    await format(code, { filepath: "example.ts" }),
+  );
+  writeFileSync(
+    "tmp/with-plugin.ts",
+    await format(code, { filepath: "example.ts", plugins: [plugin] }),
+  );
+}

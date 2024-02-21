@@ -15,6 +15,8 @@
 - `JSDocNullableType` & `JSDocUnknownType` types are non-existent
 - `Function` map to native Function type, `FunctionType` is unused and should map to strings instead of nodes
 - `TSAbstractPropertyDefinition` & `TSAbstractMethodDefinition` are missing type props
+- `JSXSpreadChild.expression` missing `JSXEmptyExpression`
+- `ThrowStatement.argument` is expression (maybe true in the future 🤞)
 - NIT: Atom & EmptyObject should be inlined
 - NIT: Inline `TSTypeOperatorType.operator`
 - NIT: Exposing a `NodeMap` type could be useful
@@ -28,10 +30,16 @@
 - importKind/exportKind
 - Property -> BindingProperty
 - TSTypeOperator -> TSTypeOperatorType
+- TSObjectKeyword -> TSThisKeyword
 - TSTypeOperatorType.type_annotation
+- NewExpression/TaggedTemplateExpression.type_parameters
 - TemplateElementValue.cooked nullable?
 - Using deprecated typeParameters
 - Usage of wide modifiers instead of declare/abstract boolean on appropriate nodes
+- TSEnumDeclaration.members -> TSEnumDeclaration.body.members
+- ImportDeclaration/ExportAllDeclaration.attributes -> .withClause
+- ImportExpression.attributes -> ImportExpression.arguments (here TSESTree feels weird)
+- TSMappedTypeModifierOperator?
 
 ### To be documented?
 
@@ -41,5 +49,8 @@
 - ArrayExpression hole
 - BindingPattern
 - Rest arguments/properties
-- TSThisParam
+- TSThisParameter
 - TSIndexSignatureName
+- UsingDeclaration
+- ArrayAssignmentTarget/ObjectAssignmentTarget
+- PrivateInExpression

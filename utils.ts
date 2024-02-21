@@ -18,10 +18,13 @@ export const oxcParse = (code: string, options: ParserOptions) => {
 export const oxcToESTree = (node: Node): any => {
   switch (node.type) {
     case "Program":
+    // TODO: Program.hashbang?
     case "BlockStatement":
+    case "StaticBlock":
       for (const stmt of node.body) oxcToESTree(stmt);
       break;
     case "ImportDeclaration":
+      // TODO: withClause/attributes
       if (node.specifiers) {
         for (const specifier of node.specifiers) oxcToESTree(specifier);
       }
@@ -43,6 +46,10 @@ export const oxcToESTree = (node: Node): any => {
     case "ImportDefaultSpecifier":
       oxcToESTree(node.local);
       break;
+    case "ImportExpression":
+      // TODO: arguments/attributes?
+      oxcToESTree(node.source);
+      break;
     case "TSImportEqualsDeclaration":
       oxcToESTree(node.id);
       oxcToESTree(node.moduleReference);
@@ -52,6 +59,8 @@ export const oxcToESTree = (node: Node): any => {
         node.importKind.type;
       break;
     case "TSImportType":
+      if (node.qualifier) oxcToESTree(node.qualifier);
+      if (node.typeParameters) oxcToESTree(node.typeParameters);
       // TODO: incomplete support, see https://github.com/oxc-project/oxc/issues/2394
       // and https://github.com/prettier/prettier/issues/16072
       // @ts-expect-error
@@ -86,29 +95,54 @@ export const oxcToESTree = (node: Node): any => {
       oxcToESTree(node.declaration);
       oxcToESTree(node.exported);
       break;
+    case "ExportAllDeclaration":
+      // TODO: withClause/attributes
+      oxcToESTree(node.source);
+      if (node.exported) oxcToESTree(node.exported);
+      // @ts-expect-error
+      node.exportKind =
+        // no error
+        node.export_kind.type;
+      // @ts-expect-error
+      delete node.export_kind;
+      break;
     case "ExpressionStatement":
     case "ParenthesizedExpression":
+    case "ChainExpression":
     case "Decorator":
     case "TSExportAssignment":
     case "TSNonNullExpression":
+    case "JSXSpreadChild":
+    case "JSXExpressionContainer":
       oxcToESTree(node.expression);
       break;
+    case "SequenceExpression":
+      for (const expr of node.expressions) oxcToESTree(expr);
+      break;
     case "AssignmentExpression":
+    case "AssignmentPattern":
       oxcToESTree(node.left);
       oxcToESTree(node.right);
       break;
     case "BinaryExpression":
+    case "LogicalExpression":
       oxcToESTree(node.left);
       oxcToESTree(node.right);
       break;
     case "CallExpression":
       oxcToESTree(node.callee);
       for (const arg of node.arguments) oxcToESTree(arg);
+      if (node.typeParameters) oxcToESTree(node.typeParameters);
       break;
     case "IfStatement":
       oxcToESTree(node.test);
       oxcToESTree(node.consequent);
       if (node.alternate) oxcToESTree(node.alternate);
+      break;
+    case "ConditionalExpression":
+      oxcToESTree(node.test);
+      oxcToESTree(node.consequent);
+      oxcToESTree(node.alternate);
       break;
     case "SwitchStatement":
       oxcToESTree(node.discriminant);
@@ -124,7 +158,13 @@ export const oxcToESTree = (node: Node): any => {
       if (node.update) oxcToESTree(node.update);
       oxcToESTree(node.body);
       break;
+    case "WhileStatement":
+    case "DoWhileStatement":
+      oxcToESTree(node.test);
+      oxcToESTree(node.body);
+      break;
     case "ForOfStatement":
+    case "ForInStatement":
       oxcToESTree(node.left);
       oxcToESTree(node.right);
       oxcToESTree(node.body);
@@ -140,14 +180,34 @@ export const oxcToESTree = (node: Node): any => {
     case "AwaitExpression":
     case "SpreadElement":
     case "UnaryExpression":
+    case "JSXSpreadAttribute":
+    case "BindingRestElement":
       oxcToESTree(node.argument);
       break;
     case "ReturnStatement":
+    case "YieldExpression":
       if (node.argument) oxcToESTree(node.argument);
       break;
     case "NewExpression":
       oxcToESTree(node.callee);
       for (const arg of node.arguments) oxcToESTree(arg);
+      if (node.type_parameters)
+        // @ts-expect-error
+        node.typeParameters =
+          // no error
+          oxcToESTree(node.type_parameters);
+      break;
+    case "LabeledStatement":
+      oxcToESTree(node.label);
+      oxcToESTree(node.body);
+      break;
+    case "BreakStatement":
+    case "ContinueStatement":
+      if (node.label) oxcToESTree(node.label);
+      break;
+    case "WithStatement":
+      oxcToESTree(node.object);
+      oxcToESTree(node.body);
       break;
     case "StaticMemberExpression":
       // @ts-expect-error
@@ -175,14 +235,9 @@ export const oxcToESTree = (node: Node): any => {
       // @ts-expect-error
       delete node.field;
       break;
+    case "LabelIdentifier":
     case "IdentifierReference":
-      // @ts-expect-error
-      node.type = "Identifier";
-      break;
     case "IdentifierName":
-      // @ts-expect-error
-      node.type = "Identifier";
-      break;
     case "BindingIdentifier":
       // @ts-expect-error
       node.type = "Identifier";
@@ -196,6 +251,13 @@ export const oxcToESTree = (node: Node): any => {
       node.type = "NumericLiteral";
       // @ts-expect-error
       node.extra = { rawValue: node.value, raw: `${node.value}` };
+      break;
+    case "TaggedTemplateExpression":
+      oxcToESTree(node.tag);
+      oxcToESTree(node.quasi);
+      if (node.type_parameters)
+        // @ts-expect-error
+        node.typeParameters = oxcToESTree(node.type_parameters);
       break;
     case "TemplateLiteral":
       for (const expr of node.expressions) oxcToESTree(expr);
@@ -234,9 +296,13 @@ export const oxcToESTree = (node: Node): any => {
     case "ObjectProperty":
       oxcToESTree(node.key);
       oxcToESTree(node.value);
+      if (node.init) oxcToESTree(node.init);
       break;
     case "VariableDeclaration":
       for (const decl of node.declarations) oxcToESTree(decl);
+      // @ts-expect-error
+      node.declare = // no error
+        node.modifiers?.some((m) => m.kind.type === "declare");
       break;
     case "VariableDeclarator":
       node.id = oxcToESTree(node.id);
@@ -269,15 +335,43 @@ export const oxcToESTree = (node: Node): any => {
         delete node.rest;
       }
       break;
-    case "ObjectPattern":
-      for (const prop of node.properties) {
-        oxcToESTree(prop);
+    case "ArrayAssignmentTarget":
+      // @ts-expect-error
+      node.type = "ArrayPattern";
+      for (const prop of node.elements) {
+        if (prop) oxcToESTree(prop);
       }
+      if (node.rest) {
+        node.elements.push({
+          // @ts-expect-error
+          type: "RestElement",
+          argument: oxcToESTree(node.rest),
+        });
+        // @ts-expect-error
+        delete node.rest;
+      }
+      break;
+    case "ObjectPattern":
+      for (const prop of node.properties) oxcToESTree(prop);
       if (node.rest) {
         node.properties.push({
           // @ts-expect-error
           type: "RestElement",
           argument: oxcToESTree(node.rest.argument),
+        });
+        // @ts-expect-error
+        delete node.rest;
+      }
+      break;
+    case "ObjectAssignmentTarget":
+      // @ts-expect-error
+      node.type = "ObjectPattern";
+      for (const prop of node.properties) oxcToESTree(prop);
+      if (node.rest) {
+        node.properties.push({
+          // @ts-expect-error
+          type: "RestElement",
+          argument: oxcToESTree(node.rest),
         });
         // @ts-expect-error
         delete node.rest;
@@ -289,7 +383,18 @@ export const oxcToESTree = (node: Node): any => {
       oxcToESTree(node.key);
       node.value = oxcToESTree(node.value);
       break;
+    case "CatchClause":
+      if (node.param) oxcToESTree(node.param);
+      oxcToESTree(node.body);
+      break;
+    case "TryStatement":
+      oxcToESTree(node.block);
+      if (node.handler) oxcToESTree(node.handler);
+      if (node.finalizer) oxcToESTree(node.finalizer);
+      break;
     case "TSTypeAnnotation":
+    case "TSRestType":
+    case "TSOptionalType":
       node.typeAnnotation = oxcToESTree(node.typeAnnotation);
       break;
     case "TSTypeReference":
@@ -355,8 +460,6 @@ export const oxcToESTree = (node: Node): any => {
         node.modifiers?.some((m) => m.kind.type === "declare");
       break;
     case "TSUnionType":
-      for (const type of node.types) oxcToESTree(type);
-      break;
     case "TSIntersectionType":
       for (const type of node.types) oxcToESTree(type);
       break;
@@ -406,6 +509,13 @@ export const oxcToESTree = (node: Node): any => {
       oxcToESTree(node.typeParameter);
       if (node.nameType) oxcToESTree(node.nameType);
       if (node.typeAnnotation) oxcToESTree(node.typeAnnotation);
+      // TODO: check if correct (ex typescript/lib/lib.es2020.promise.d.ts)
+      if (node.optional === "none")
+        // @ts-expect-error
+        node.optional = undefined;
+      if (node.readonly === "none")
+        // @ts-expect-error
+        node.readonly = undefined;
       break;
     case "TSConditionalType":
       oxcToESTree(node.checkType);
@@ -420,6 +530,8 @@ export const oxcToESTree = (node: Node): any => {
         inlineFormalParameters(node.params, node.thisParam);
       oxcToESTree(node.returnType);
       if (node.typeParameters) oxcToESTree(node.typeParameters);
+      // @ts-expect-error
+      delete node.thisParam;
       break;
     case "TSMethodSignature":
       oxcToESTree(node.key);
@@ -429,6 +541,8 @@ export const oxcToESTree = (node: Node): any => {
         inlineFormalParameters(node.params, node.thisParam);
       if (node.returnType) oxcToESTree(node.returnType);
       if (node.typeParameters) oxcToESTree(node.typeParameters);
+      // @ts-expect-error
+      delete node.thisParam;
       break;
     case "TSCallSignatureDeclaration":
       // @ts-expect-error
@@ -437,6 +551,8 @@ export const oxcToESTree = (node: Node): any => {
         inlineFormalParameters(node.params, node.thisParam);
       if (node.returnType) oxcToESTree(node.returnType);
       if (node.typeParameters) oxcToESTree(node.typeParameters);
+      // @ts-expect-error
+      delete node.thisParam;
       break;
     case "TSConstructSignatureDeclaration":
       // @ts-expect-error
@@ -462,12 +578,19 @@ export const oxcToESTree = (node: Node): any => {
       for (const decl of node.body.body) oxcToESTree(decl);
       if (node.superTypeParameters) oxcToESTree(node.superTypeParameters);
       if (node.typeParameters) oxcToESTree(node.typeParameters);
+      for (const d of node.decorators) oxcToESTree(d);
+      if (node.implements) for (const i of node.implements) oxcToESTree(i);
       // @ts-expect-error
       node.abstract = // no error
         node.modifiers?.some((m) => m.kind.type === "abstract");
       // @ts-expect-error
       node.declare = // no error
         node.modifiers?.some((m) => m.kind.type === "declare");
+      break;
+    case "AccessorProperty":
+      oxcToESTree(node.key);
+      if (node.value) oxcToESTree(node.value);
+      for (const d of node.decorators) oxcToESTree(d);
       break;
     case "MethodDefinition":
     case "TSAbstractMethodDefinition":
@@ -504,8 +627,42 @@ export const oxcToESTree = (node: Node): any => {
       oxcToESTree(node.parameterName);
       if (node.typeAnnotation) oxcToESTree(node.typeAnnotation);
       break;
+    case "TSNamedTupleMember":
+      oxcToESTree(node.elementType);
+      oxcToESTree(node.label);
+      break;
     case "TSTupleType":
-      // TODO;
+      for (const el of node.elementTypes) oxcToESTree(el);
+      break;
+    case "JSXAttribute":
+      oxcToESTree(node.name);
+      if (node.value) oxcToESTree(node.value);
+      break;
+    case "JSXMemberExpression":
+      oxcToESTree(node.object);
+      oxcToESTree(node.property);
+      break;
+    case "JSXFragment":
+    case "JSXElement":
+      for (const child of node.children) oxcToESTree(child);
+      break;
+    case "JSXOpeningElement":
+      for (const attr of node.attributes) oxcToESTree(attr);
+      if (node.typeParameters) oxcToESTree(node.typeParameters);
+      break;
+    case "MetaProperty":
+      oxcToESTree(node.meta);
+      oxcToESTree(node.property);
+      break;
+    case "TSThisKeyword":
+      // @ts-expect-error
+      node.type = "TSObjectKeyword";
+      break;
+    case "UsingDeclaration":
+      // TODO convert to VariableDeclaration
+      break;
+    case "PrivateInExpression":
+      // TODO: not an TSESTree node, find what to map
       break;
   }
   return node;
