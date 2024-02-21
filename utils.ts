@@ -656,7 +656,7 @@ export const oxcToESTree = (node: Node): any => {
       break;
     case "TSThisKeyword":
       // @ts-expect-error
-      node.type = "TSObjectKeyword";
+      node.type = "TSThisType";
       break;
     case "UsingDeclaration":
       // TODO convert to VariableDeclaration

@@ -23,14 +23,19 @@
 
 ## Difference with ESTree
 
+### Name change
+
+| TSESTree                | OXC                |
+| ----------------------- | ------------------ |
+| ArrowFunctionExpression | ArrowExpression    |
+| NumericLiteral          | NumberLiteral      |
+| Property                | BindingProperty    |
+| TSThisType              | TSThisKeyword      |
+| TSTypeOperator          | TSTypeOperatorType |
+
 ### Unnecessary?
 
-- ArrowFunctionExpression-> ArrowExpression
-- NumericLiteral -> NumberLiteral (Technically Babel AST)
 - importKind/exportKind
-- Property -> BindingProperty
-- TSTypeOperator -> TSTypeOperatorType
-- TSObjectKeyword -> TSThisKeyword
 - TSTypeOperatorType.type_annotation
 - NewExpression/TaggedTemplateExpression.type_parameters
 - TemplateElementValue.cooked nullable?
