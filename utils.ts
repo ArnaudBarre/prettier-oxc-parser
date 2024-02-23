@@ -59,16 +59,10 @@ export const oxcToESTree = (node: Node): any => {
         node.importKind.type;
       break;
     case "TSImportType":
+      // TODO: ImportAttributes
+      oxcToESTree(node.argument);
       if (node.qualifier) oxcToESTree(node.qualifier);
       if (node.typeParameters) oxcToESTree(node.typeParameters);
-      // TODO: incomplete support, see https://github.com/oxc-project/oxc/issues/2394
-      // and https://github.com/prettier/prettier/issues/16072
-      // @ts-expect-error
-      node.argument =
-        // no error
-        oxcToESTree(node.parameter);
-      // @ts-expect-error
-      delete node.parameter;
       break;
     case "ExportNamedDeclaration":
       if (node.declaration) oxcToESTree(node.declaration);
@@ -246,9 +240,7 @@ export const oxcToESTree = (node: Node): any => {
       // @ts-expect-error
       node.extra = { rawValue: node.value, raw: `"${node.value}"` };
       break;
-    case "NumberLiteral":
-      // @ts-expect-error
-      node.type = "NumericLiteral";
+    case "NumericLiteral":
       // @ts-expect-error
       node.extra = { rawValue: node.value, raw: `${node.value}` };
       break;
@@ -265,12 +257,10 @@ export const oxcToESTree = (node: Node): any => {
     case "ObjectExpression":
       for (const prop of node.properties) oxcToESTree(prop);
       break;
-    case "ArrowExpression":
+    case "ArrowFunctionExpression":
     case "FunctionDeclaration":
     case "FunctionExpression":
-      if (node.type === "ArrowExpression") {
-        // @ts-expect-error
-        node.type = "ArrowFunctionExpression";
+      if (node.type === "ArrowFunctionExpression") {
         if (node.expression) {
           // @ts-expect-error
           node.body = node.body.statements[0].expression;
@@ -486,9 +476,7 @@ export const oxcToESTree = (node: Node): any => {
     case "TSTypeParameterInstantiation":
       for (const type of node.params) oxcToESTree(type);
       break;
-    case "TSTypeOperatorType":
-      // @ts-expect-error
-      node.type = "TSTypeOperator";
+    case "TSTypeOperator":
       // @ts-expect-error
       node.typeAnnotation = oxcToESTree(node.type_annotation);
       // @ts-expect-error
@@ -653,10 +641,6 @@ export const oxcToESTree = (node: Node): any => {
     case "MetaProperty":
       oxcToESTree(node.meta);
       oxcToESTree(node.property);
-      break;
-    case "TSThisKeyword":
-      // @ts-expect-error
-      node.type = "TSThisType";
       break;
     case "UsingDeclaration":
       // TODO convert to VariableDeclaration
