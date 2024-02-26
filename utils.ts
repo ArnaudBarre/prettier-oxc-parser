@@ -12,7 +12,21 @@ import type { TSESTree } from "@typescript-eslint/types";
 export const oxcParse = (code: string, options: ParserOptions) => {
   const result = parseSync(code, options);
   if (result.errors.length) throw new Error(result.errors[0]);
-  return JSON.parse(result.program) as Program;
+  const program = JSON.parse(result.program) as Program & {
+    comments: {
+      type: "Line" | "Block";
+      value: string;
+      start: number;
+      end: number;
+    }[];
+  };
+  for (const comment of result.comments) {
+    comment.start -= 2;
+    if (comment.type === "Block") comment.end += 2;
+  }
+  // @ts-expect-error
+  program.comments = result.comments;
+  return program;
 };
 
 export const oxcToESTree = (node: Node): any => {
@@ -25,6 +39,10 @@ export const oxcToESTree = (node: Node): any => {
       break;
     case "ImportDeclaration":
       // TODO: withClause/attributes
+      // @ts-expect-error
+      delete node.withClause;
+      // @ts-expect-error
+      node.attributes = [];
       if (node.specifiers) {
         for (const specifier of node.specifiers) oxcToESTree(specifier);
       }
@@ -65,6 +83,8 @@ export const oxcToESTree = (node: Node): any => {
       if (node.typeParameters) oxcToESTree(node.typeParameters);
       break;
     case "ExportNamedDeclaration":
+      // @ts-expect-error
+      node.attributes = [];
       if (node.declaration) oxcToESTree(node.declaration);
       if (node.source) oxcToESTree(node.source);
       for (const specifier of node.specifiers) oxcToESTree(specifier);
@@ -105,6 +125,7 @@ export const oxcToESTree = (node: Node): any => {
     case "ChainExpression":
     case "Decorator":
     case "TSExportAssignment":
+    case "TSExternalModuleReference":
     case "TSNonNullExpression":
     case "JSXSpreadChild":
     case "JSXExpressionContainer":
@@ -173,7 +194,6 @@ export const oxcToESTree = (node: Node): any => {
     case "UpdateExpression":
     case "AwaitExpression":
     case "SpreadElement":
-    case "UnaryExpression":
     case "JSXSpreadAttribute":
     case "BindingRestElement":
       oxcToESTree(node.argument);
@@ -181,6 +201,11 @@ export const oxcToESTree = (node: Node): any => {
     case "ReturnStatement":
     case "YieldExpression":
       if (node.argument) oxcToESTree(node.argument);
+      break;
+    case "UnaryExpression":
+      // @ts-expect-error
+      node.prefix = true;
+      oxcToESTree(node.argument);
       break;
     case "NewExpression":
       oxcToESTree(node.callee);
@@ -261,6 +286,16 @@ export const oxcToESTree = (node: Node): any => {
     case "FunctionDeclaration":
     case "FunctionExpression":
       if (node.type === "ArrowFunctionExpression") {
+        // @ts-expect-error
+        node.start = node.span.start;
+        // @ts-expect-error
+        node.end = node.span.end;
+        // @ts-expect-error
+        delete node.span;
+        // @ts-expect-error
+        node.generator = false;
+        // @ts-expect-error
+        node.id = null;
         if (node.expression) {
           // @ts-expect-error
           node.body = node.body.statements[0].expression;
@@ -284,6 +319,8 @@ export const oxcToESTree = (node: Node): any => {
       delete node.statements;
       break;
     case "ObjectProperty":
+      // @ts-expect-error
+      node.type = "Property";
       oxcToESTree(node.key);
       oxcToESTree(node.value);
       if (node.init) oxcToESTree(node.init);
@@ -292,7 +329,9 @@ export const oxcToESTree = (node: Node): any => {
       for (const decl of node.declarations) oxcToESTree(decl);
       // @ts-expect-error
       node.declare = // no error
-        node.modifiers?.some((m) => m.kind.type === "declare");
+        node.modifiers?.some((m) => m.kind.type === "declare") ?? false;
+      // @ts-expect-error
+      delete node.modifiers;
       break;
     case "VariableDeclarator":
       node.id = oxcToESTree(node.id);
@@ -372,6 +411,8 @@ export const oxcToESTree = (node: Node): any => {
       node.type = "Property";
       oxcToESTree(node.key);
       node.value = oxcToESTree(node.value);
+      // @ts-expect-error
+      node.kind = "init";
       break;
     case "CatchClause":
       if (node.param) oxcToESTree(node.param);
@@ -440,6 +481,8 @@ export const oxcToESTree = (node: Node): any => {
       // @ts-expect-error
       node.declare = // no error
         node.modifiers?.some((m) => m.kind.type === "declare");
+      // @ts-expect-error
+      delete node.modifiers;
       break;
     case "TSTypeAliasDeclaration":
       oxcToESTree(node.id);
@@ -448,6 +491,8 @@ export const oxcToESTree = (node: Node): any => {
       // @ts-expect-error
       node.declare = // no error
         node.modifiers?.some((m) => m.kind.type === "declare");
+      // @ts-expect-error
+      delete node.modifiers;
       break;
     case "TSUnionType":
     case "TSIntersectionType":
@@ -471,7 +516,14 @@ export const oxcToESTree = (node: Node): any => {
       if (node.default) oxcToESTree(node.default);
       break;
     case "TSLiteralType":
-      oxcToESTree(node.literal);
+      if (node.literal.type === "NullLiteral") {
+        // @ts-expect-error
+        node.type = "TSNullKeyword";
+        // @ts-expect-error
+        delete node.literal;
+      } else {
+        oxcToESTree(node.literal);
+      }
       break;
     case "TSTypeParameterInstantiation":
       for (const type of node.params) oxcToESTree(type);
@@ -680,5 +732,12 @@ const inlineFormalParameter = (node: FormalParameter): TSESTree.Parameter =>
 const inlineBindingPattern = (node: BindingPattern): TSESTree.Parameter => {
   const { kind, typeAnnotation, optional } = node;
   if (typeAnnotation) oxcToESTree(typeAnnotation);
-  return { ...oxcToESTree(kind), typeAnnotation, optional };
+  return typeAnnotation
+    ? {
+        ...oxcToESTree(kind),
+        end: typeAnnotation.end,
+        typeAnnotation,
+        optional,
+      }
+    : { ...oxcToESTree(kind), optional };
 };

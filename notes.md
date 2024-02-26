@@ -4,11 +4,6 @@
 
 - JSON.parse should be done by the wrapper & program should be typed with types from the [#2158](https://github.com/oxc-project/oxc/pull/2158) (see `oxcParse` util)
 
-## AST issues
-
-- Missing comments info
-- https://github.com/oxc-project/oxc/issues/2395
-
 ## AST types issues
 
 - `JSDocNullableType` & `JSDocUnknownType` types are non-existent
@@ -22,23 +17,34 @@
 
 ## Difference with ESTree
 
+# Merged, to be removed from mapper function
+
+- https://github.com/oxc-project/oxc/issues/2395
+- TSTypeAliasDeclaration.end is 0
+
+### Addressed in [#2506](https://github.com/oxc-project/oxc/pull/2506)
+
+- ArrowFunctionExpression.span
+- TSTypeOperator.type_annotation
+- NewExpression/TaggedTemplateExpression.type_parameters
+- importKind/exportKind
+- TSEnumDeclaration.members -> TSEnumDeclaration.body.members
+- comment.type should be `Line | Block`
+
 ### Name change
 
 | TSESTree        | OXC               |
 | --------------- | ----------------- |
 | Property        | BindingProperty   |
 | ImportAttribute | TSImportAttribute |
+| Property        | ObjectProperty    |
 
 ### Unnecessary?
 
-- importKind/exportKind
-- TSTypeOperator.type_annotation
-- NewExpression/TaggedTemplateExpression.type_parameters
 - TemplateElementValue.cooked nullable?
 - Using deprecated typeParameters on CallExpression/JSXOpeningElement/NewExpression/TaggedTemplateExpression/TSHeritageBase/TSImportType/TSTypeQuery/TSTypeReference
 - Using deprecated superTypeParameters on ClassDeclaration
 - Usage of wide modifiers instead of declare/abstract boolean on appropriate nodes
-- TSEnumDeclaration.members -> TSEnumDeclaration.body.members
 - ImportDeclaration/ExportAllDeclaration.attributes -> .withClause
 - TSImportAttributes intermediate node
 - TSImportAttribute value should be StringLiteral
