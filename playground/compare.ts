@@ -1,8 +1,8 @@
 // import oxc from "./tmp/ast-updated.json";
-import ts from "./tmp/default-ast.json";
+import ts from "../tmp/default-ast.json";
 import assert from "node:assert";
 import { readFileSync, writeFileSync } from "node:fs";
-import { oxcParse, oxcToESTree } from "./utils.ts";
+import { oxcParse, oxcToESTree } from "../src/utils.ts";
 
 const code = readFileSync("oxc-types.ts", "utf-8");
 const oxc = oxcParse(code, { sourceFilename: "playground.d.ts" });

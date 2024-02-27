@@ -17,28 +17,6 @@
 
 ## Difference with ESTree
 
-# Merged, to be removed from mapper function
-
-- https://github.com/oxc-project/oxc/issues/2395
-- TSTypeAliasDeclaration.end is 0
-
-### Addressed in [#2506](https://github.com/oxc-project/oxc/pull/2506)
-
-- ArrowFunctionExpression.span
-- TSTypeOperator.type_annotation
-- NewExpression/TaggedTemplateExpression.type_parameters
-- importKind/exportKind
-- TSEnumDeclaration.members -> TSEnumDeclaration.body.members
-- comment.type should be `Line | Block`
-
-### Name change
-
-| TSESTree        | OXC               |
-| --------------- | ----------------- |
-| Property        | BindingProperty   |
-| ImportAttribute | TSImportAttribute |
-| Property        | ObjectProperty    |
-
 ### Unnecessary?
 
 - TemplateElementValue.cooked nullable?
@@ -46,7 +24,7 @@
 - Using deprecated superTypeParameters on ClassDeclaration
 - Usage of wide modifiers instead of declare/abstract boolean on appropriate nodes
 - ImportDeclaration/ExportAllDeclaration.attributes -> .withClause
-- TSImportAttributes intermediate node
+- TSImportAttribute -> ImportAttribute
 - TSImportAttribute value should be StringLiteral
 - TSImportAttribute.name is not a union
 - ImportExpression.attributes -> ImportExpression.arguments (here TSESTree feels weird)

@@ -3,8 +3,8 @@ import { Glob } from "bun";
 import { readFileSync, writeFileSync } from "node:fs";
 import { format, type Plugin } from "prettier";
 import typescriptParser from "prettier/parser-typescript";
-import * as plugin from "./index.ts";
-import { oxcParse, oxcToESTree } from "./utils.ts";
+import * as plugin from "../src/index.ts";
+import { oxcParse, oxcToESTree } from "../src/utils.ts";
 
 const glob = new Glob("**/*.ts");
 
@@ -22,16 +22,14 @@ const defaultPlugin: Plugin = {
   },
 };
 
-for await (const file of glob.scan(".")) {
+for await (const file of glob.scan("..")) {
   if (file === "node_modules/typescript/lib/lib.dom.d.ts") continue;
   if (file === "node_modules/typescript/lib/lib.webworker.d.ts") continue;
-  if (file === "node_modules/prettier/doc.d.ts") continue;
-  if (file === "node_modules/prettier/index.d.ts") continue;
   console.log(file);
 
   const code = readFileSync(file, "utf-8");
 
-  const ast = oxcParse(code, { sourceFilename: "playground.ts" });
+  const ast = oxcParse(code, { sourceFilename: file });
   writeFileSync("tmp/ast.json", JSON.stringify(ast, null, 2));
   oxcToESTree(ast);
   writeFileSync("tmp/ast-updated.json", JSON.stringify(ast, null, 2));
