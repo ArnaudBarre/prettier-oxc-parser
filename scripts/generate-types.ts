@@ -3,113 +3,104 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { format } from "prettier";
 import { oxcParse, oxcToESTree } from "../src/utils.ts";
 import type {
-  ExportNamedDeclaration,
   Program,
+  Statement,
+  TSArrayType,
   TSType,
   TSTypeReference,
+  TSUnionType,
 } from "../src/oxc-types.ts";
 
 const content = readFileSync(
-  import.meta.dir + "/../../oxc/crates/oxc_wasm/pkg/oxc_wasm.d.ts",
+  import.meta.dir + "/../../oxc/npm/parser-wasm/oxc_parser_wasm.d.ts",
   "utf-8",
 );
+const ast = oxcParse(content, { sourceFilename: "oxc_parser_wasm.d.ts" });
+const exports: Statement[] = [];
+const nodes: string[] = [];
+const visited = new Map<string, TSType | null>();
 
-const inlineTypes = [
-  "Atom",
-  "ReferenceId",
-  "EmptyObject",
-  "TSTypeOperatorOperator",
-  "LanguageVariant",
-  "ModuleKind",
-  "Language",
-  "RegExpFlags",
-];
+const visitNode = (name: string): TSType | null => {
+  const cached = visited.get(name);
+  if (cached !== undefined) return cached;
 
-const ast = oxcParse(content, { sourceFilename: "oxc_wasm.d.ts" });
-
-const typeToExport: ExportNamedDeclaration[] = [];
-
-const visited = new Set<string>();
-
-const visitNode = (name: string) => {
-  if (visited.has(name)) return;
-  visited.add(name);
-  console.log(name);
-  const int = getInt(name);
-  if (!int) {
-    const type = getType(name);
-    if (!type) throw new Error(`Could not find node ${name}`);
-    if (type.decl.type !== "TSUnionType") {
-      throw new Error(`Unexpected type ${type.decl.type}`);
+  const type = getType(name);
+  if (type) {
+    if (
+      type.decl.type === "TSUnionType" &&
+      type.decl.types.every((t) => t.type === "TSTypeReference")
+    ) {
+      exports.push(type.exp);
+      visited.set(name, null);
+      for (const t of type.decl.types) handleReference(t as TSTypeReference);
+    } else {
+      console.log(`Inline ${name}`);
+      visited.set(name, type.decl);
+      return type.decl;
     }
-    for (const t of type.decl.types) {
-      if (t.type === "TSTypeReference") {
-        handleReference(t);
-      } else {
-        throw new Error(`Unexpected type ${t.type}`);
+  } else {
+    const int = getInt(name);
+    if (!int) throw new Error(`Could not find interface ${name}`);
+    exports.push(int.exp);
+    visited.set(name, null);
+    for (const sig of int.decl.body.body) {
+      if (sig.type !== "TSPropertySignature") {
+        throw new Error(`Unexpected signature type ${sig.type}`);
+      }
+      if (
+        !sig.typeAnnotation ||
+        sig.typeAnnotation.type !== "TSTypeAnnotation"
+      ) {
+        throw new Error(
+          `Unexpected typeAnnotation type ${sig.typeAnnotation?.type}`,
+        );
+      }
+      if (sig.key.type === "IdentifierName" && sig.key.name === "type") {
+        nodes.push(name);
+      }
+      switch (sig.typeAnnotation.typeAnnotation.type) {
+        case "TSTypeReference":
+          const inlineType = handleReference(sig.typeAnnotation.typeAnnotation);
+          if (inlineType) {
+            sig.typeAnnotation.typeAnnotation = inlineType;
+            if (inlineType.type === "TSUnionType") handleUnionType(inlineType);
+          }
+          break;
+        case "TSUnionType":
+          handleUnionType(sig.typeAnnotation.typeAnnotation);
+          break;
+        case "TSArrayType":
+          handleArrayType(sig.typeAnnotation.typeAnnotation);
+          break;
       }
     }
-    typeToExport.push(type.exp);
-    return;
   }
-  typeToExport.push(int.exp);
-  for (const sig of int.decl.body.body) {
-    if (sig.type !== "TSPropertySignature") {
-      throw new Error(`Unexpected signature type ${sig.type}`);
-    }
-    if (!sig.typeAnnotation || sig.typeAnnotation.type !== "TSTypeAnnotation") {
-      throw new Error(
-        `Unexpected typeAnnotation type ${sig.typeAnnotation?.type}`,
-      );
-    }
-    switch (sig.typeAnnotation.typeAnnotation.type) {
-      case "TSTypeReference":
-        const inlineType = handleReference(sig.typeAnnotation.typeAnnotation);
-        if (inlineType) sig.typeAnnotation.typeAnnotation = inlineType;
-        break;
-      case "TSUnionType":
-        const { types } = sig.typeAnnotation.typeAnnotation;
-        for (const [i, t] of types.entries()) {
-          if (t.type === "TSTypeReference") {
-            const inlineType = handleReference(t);
-            if (inlineType) types[i] = inlineType;
-          }
-        }
-        break;
-      case "TSArrayType":
-        const arrayType = sig.typeAnnotation.typeAnnotation;
-        if (arrayType.elementType.type === "TSTypeReference") {
-          const inlineType = handleReference(arrayType.elementType);
-          if (inlineType) arrayType.elementType = inlineType;
-        }
-        break;
-      default:
-        console.log(sig.typeAnnotation.typeAnnotation.type);
+  return null;
+};
+
+const handleUnionType = ({ types }: TSUnionType) => {
+  for (const [i, t] of types.entries()) {
+    if (t.type === "TSTypeReference") {
+      const inlineType = handleReference(t);
+      if (inlineType) types[i] = inlineType;
+    } else if (t.type === "TSArrayType") {
+      handleArrayType(t);
     }
   }
 };
 
-const handleReference = ({ typeName }: TSTypeReference): TSType | undefined => {
+const handleArrayType = (arrayType: TSArrayType) => {
+  if (arrayType.elementType.type === "TSTypeReference") {
+    const inlineType = handleReference(arrayType.elementType);
+    if (inlineType) arrayType.elementType = inlineType;
+  }
+};
+
+const handleReference = ({ typeName }: TSTypeReference): TSType | null => {
   if (typeName.type !== "IdentifierReference") {
     throw new Error(`Unexpected typeName type ${typeName.type}`);
   }
-  if (inlineTypes.includes(typeName.name)) {
-    const type = getType(typeName.name);
-    if (!type) {
-      const intToLine = getInt(typeName.name);
-      if (!intToLine) throw new Error(`Could not find type ${typeName.name}`);
-      return {
-        type: "TSTypeLiteral",
-        start: intToLine.decl.body.start,
-        end: intToLine.decl.body.end,
-        members: intToLine.decl.body.body,
-      };
-    } else {
-      return type.decl;
-    }
-  } else {
-    visitNode(typeName.name);
-  }
+  return visitNode(typeName.name);
 };
 
 const getInt = (name: string) => {
@@ -138,10 +129,15 @@ const getType = (name: string) => {
 
 visitNode("Program");
 
+const nodeUnion = `export type Node = ${nodes.join(" | ")};`;
+const nodeAst = oxcParse(nodeUnion, { sourceFilename: "node.d.ts" });
+exports.push(nodeAst.body[0]);
+
 writeFileSync(
-  import.meta.dir + "/tmp.d.ts",
+  import.meta.dir + "/../src/oxc-types.ts",
   await format("--", {
-    filepath: "oxc_wasm.d.ts",
+    filepath: "oxc-types.ts",
+    printWidth: 120,
     plugins: [
       {
         parsers: {
@@ -152,7 +148,7 @@ writeFileSync(
                 type: "Program",
                 start: 0,
                 end: 5000,
-                body: typeToExport,
+                body: exports,
               } as Program;
               oxcToESTree(newAst);
               return newAst;

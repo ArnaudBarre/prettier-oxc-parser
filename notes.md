@@ -1,25 +1,30 @@
 # Notes for Oxc maintainers
 
-## oxc-parser package
+## Current blockers
 
-- JSON.parse should be done by the wrapper & program should be typed with types from the [#2158](https://github.com/oxc-project/oxc/pull/2158) (see `oxcParse` util)
+- Serialization of TSAbstractMethodDefinition & TSAbstractPropertyDefinition is incorrect (https://github.com/oxc-project/oxc/issues/2532)
 
-## AST types issues
+## Nice to have
 
-- `JSDocNullableType` & `JSDocUnknownType` types are non-existent
-- `Function` map to native Function type, `FunctionType` is unused and should map to strings instead of nodes
-- `TSAbstractPropertyDefinition` & `TSAbstractMethodDefinition` are missing type props
-- `JSXSpreadChild.expression` missing `JSXEmptyExpression`
-- `ThrowStatement.argument` is expression (maybe true in the future 🤞)
-- NIT: Atom & EmptyObject should be inlined
-- NIT: Inline `TSTypeOperator.operator`
-- NIT: Exposing a `NodeMap` type could be useful
+- Add better types to the `@oxc/parser` (see next sections)
+- JSON.parse should be done by `@oxc/parser`
+
+### Type improvements from generate-types.ts
+
+- Use types from `parser-wasm` and traverse them from Program to get a clean and stable output
+- Inline types like Atom, LogicalOperator, PropertyKind
+- Expose a `Node` union
+- Pass the output trough Prettier
 
 ## Difference with ESTree
 
-### Unnecessary?
+### To investigate
 
-- TemplateElementValue.cooked nullable?
+- `JSXSpreadChild.expression` missing `JSXEmptyExpression`
+- `ThrowStatement.argument` is expression (maybe true in the future 🤞)
+
+### To change?
+
 - Using deprecated typeParameters on CallExpression/JSXOpeningElement/NewExpression/TaggedTemplateExpression/TSHeritageBase/TSImportType/TSTypeQuery/TSTypeReference
 - Using deprecated superTypeParameters on ClassDeclaration
 - Usage of wide modifiers instead of declare/abstract boolean on appropriate nodes
