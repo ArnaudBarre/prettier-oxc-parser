@@ -6,7 +6,7 @@
     "prettier": "^3"
   },
   "dependencies": {
-    "oxc-parser": "^0.6.0"
+    "oxc-parser": "^0.7.0"
   },
   "devDependencies": {
     "@arnaud-barre/tnode": "^0.19.2",

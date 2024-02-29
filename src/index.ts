@@ -1,5 +1,4 @@
-import { type Parser } from "prettier";
-import typescriptParser from "prettier/plugins/typescript";
+import type { Parser, Plugin } from "prettier";
 import { oxcParse, oxcToESTree } from "./utils.ts";
 
 const parse: Parser["parse"] = (text, options) => {
@@ -7,9 +6,12 @@ const parse: Parser["parse"] = (text, options) => {
   return oxcToESTree(ast);
 };
 
-export const parsers = {
+export const parsers: Plugin["parsers"] = {
   typescript: {
-    ...typescriptParser.parsers.typescript,
+    astFormat: "estree",
     parse,
+    locStart: (node) => node.start,
+    locEnd: (node) => node.end,
+    hasPragma: () => false,
   },
 };

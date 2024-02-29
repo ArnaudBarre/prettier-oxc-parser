@@ -1,8 +1,8 @@
 # Notes for Oxc maintainers
 
-## Current blockers
+## Current blockers/tasks
 
-- Serialization of TSAbstractMethodDefinition & TSAbstractPropertyDefinition is incorrect (https://github.com/oxc-project/oxc/issues/2532)
+- Cleanup import attribute AST
 
 ## Nice to have
 

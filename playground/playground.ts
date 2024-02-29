@@ -22,7 +22,7 @@ const defaultPlugin: Plugin = {
   },
 };
 
-for await (const file of glob.scan("..")) {
+for await (const file of glob.scan(".")) {
   if (file === "node_modules/typescript/lib/lib.dom.d.ts") continue;
   if (file === "node_modules/typescript/lib/lib.webworker.d.ts") continue;
   console.log(file);

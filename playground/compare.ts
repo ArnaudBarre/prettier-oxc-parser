@@ -4,8 +4,10 @@ import assert from "node:assert";
 import { readFileSync, writeFileSync } from "node:fs";
 import { oxcParse, oxcToESTree } from "../src/utils.ts";
 
-const code = readFileSync("oxc-types.ts", "utf-8");
-const oxc = oxcParse(code, { sourceFilename: "playground.d.ts" });
+const code = readFileSync("node_modules/esbuild/lib/main.d.ts", "utf-8");
+const oxc = oxcParse(code, {
+  sourceFilename: "node_modules/esbuild/lib/main.d.ts",
+});
 oxcToESTree(oxc);
 writeFileSync("tmp/ast-updated.json", JSON.stringify(oxc, null, 2));
 
@@ -17,10 +19,10 @@ check(oxc.comments.length, ts.comments.length);
 for (let i = 0; i < oxc.comments.length; i++) {
   const a = oxc.comments[i];
   const b = ts.comments[i];
-  check(a.type, b.type);
-  check(a.value, b.value);
-  check(a.start, b.range[0]);
-  check(a.end, b.range[1]);
+  check(a.type, b.type, `comments[${i}].type`);
+  check(a.value, b.value, `comments[${i}].value`);
+  check(a.start, b.range[0], `comments[${i}].start`);
+  check(a.end, b.range[1], `comments[${i}].end`);
 }
 const literals = [
   "StringLiteral",

@@ -709,20 +709,13 @@ export interface ClassBody extends Span {
   type: "ClassBody";
   body: ClassElement[];
 }
-export type ClassElement =
-  | StaticBlock
-  | MethodDefinition
-  | PropertyDefinition
-  | AccessorProperty
-  | TSAbstractMethodDefinition
-  | TSAbstractPropertyDefinition
-  | TSIndexSignature;
+export type ClassElement = StaticBlock | MethodDefinition | PropertyDefinition | AccessorProperty | TSIndexSignature;
 export interface StaticBlock extends Span {
   type: "StaticBlock";
   body: Statement[];
 }
 export interface MethodDefinition extends Span {
-  type: "MethodDefinition";
+  type: "MethodDefinition" | "TSAbstractMethodDefinition";
   key: PropertyKey;
   value: Function;
   kind: "constructor" | "method" | "get" | "set";
@@ -765,7 +758,7 @@ export interface Modifier extends Span {
     | "override";
 }
 export interface PropertyDefinition extends Span {
-  type: "PropertyDefinition";
+  type: "PropertyDefinition" | "TSAbstractPropertyDefinition";
   key: PropertyKey;
   value: Expression | null;
   computed: boolean;
@@ -787,8 +780,6 @@ export interface AccessorProperty extends Span {
   static: boolean;
   decorators: Decorator[];
 }
-export interface TSAbstractMethodDefinition extends Omit<MethodDefinition, "type"> {}
-export interface TSAbstractPropertyDefinition extends Omit<PropertyDefinition, "type"> {}
 export interface TSClassImplements extends Span {
   type: "TSClassImplements";
   expression: TSTypeName;
