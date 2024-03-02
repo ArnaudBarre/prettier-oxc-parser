@@ -28,6 +28,7 @@
 - Using deprecated typeParameters on CallExpression/JSXOpeningElement/NewExpression/TaggedTemplateExpression/TSClassImplements/TSInterfaceHeritage/TSImportType/TSTypeQuery/TSTypeReference
 - Using deprecated superTypeParameters on ClassDeclaration
 - Usage of wide modifiers instead of declare/abstract boolean on appropriate nodes
+- TSInterfaceDeclaration.extends null
 - ImportDeclaration/ExportAllDeclaration.attributes -> .withClause
 - TSImportAttribute -> ImportAttribute
 - TSImportAttribute value should be StringLiteral

@@ -248,21 +248,32 @@ export const oxcToESTree = (node: Node): any => {
       for (const prop of node.properties) oxcToESTree(prop);
       break;
     case "ArrowFunctionExpression":
+      setProp(node, "generator", false);
+      setProp(node, "id", null);
+      if (node.expression) {
+        setProp(
+          node,
+          "body",
+          (node.body.statements[0] as ExpressionStatement).expression,
+        );
+      }
+      setProp(node, "params", inlineFormalParameters(node.params, null));
+      if (node.body) oxcToESTree(node.body);
+      if (node.typeParameters) oxcToESTree(node.typeParameters);
+      if (node.returnType) oxcToESTree(node.returnType);
+      break;
     case "FunctionDeclaration":
     case "FunctionExpression":
-      if (node.type === "ArrowFunctionExpression") {
-        setProp(node, "generator", false);
-        setProp(node, "id", null);
-        if (node.expression) {
-          setProp(
-            node,
-            "body",
-            (node.body.statements[0] as ExpressionStatement).expression,
-          );
-        }
-      }
+    case "TSDeclareFunction":
+      const declare = node.modifiers?.some((m) => m.kind === "declare");
+      if (declare) setProp(node, "declare", true);
+      if (node.id) oxcToESTree(node.id);
+      setProp(
+        node,
+        "params",
+        inlineFormalParameters(node.params, node.thisParam),
+      );
       if (node.body) oxcToESTree(node.body);
-      setProp(node, "params", inlineFormalParameters(node.params, null));
       if (node.typeParameters) oxcToESTree(node.typeParameters);
       if (node.returnType) oxcToESTree(node.returnType);
       break;
@@ -416,6 +427,11 @@ export const oxcToESTree = (node: Node): any => {
     case "TSEnumDeclaration":
       oxcToESTree(node.id);
       for (const member of node.members) oxcToESTree(member);
+      setProp(
+        node,
+        "declare",
+        node.modifiers?.some((m) => m.kind === "declare"),
+      );
       break;
     case "TSEnumMember":
       oxcToESTree(node.id);
@@ -468,12 +484,7 @@ export const oxcToESTree = (node: Node): any => {
       if (node.default) oxcToESTree(node.default);
       break;
     case "TSLiteralType":
-      if (node.literal.type === "NullLiteral") {
-        setProp(node, "type", "TSNullKeyword");
-        deleteProp(node, "literal");
-      } else {
-        oxcToESTree(node.literal);
-      }
+      oxcToESTree(node.literal);
       break;
     case "TSTypeParameterInstantiation":
       for (const type of node.params) oxcToESTree(type);
@@ -540,17 +551,6 @@ export const oxcToESTree = (node: Node): any => {
       setProp(node, "params", inlineFormalParameters(node.params, null));
       if (node.returnType) oxcToESTree(node.returnType);
       if (node.typeParameters) oxcToESTree(node.typeParameters);
-      break;
-    case "TSDeclareFunction":
-      if (node.id) oxcToESTree(node.id);
-      setProp(node, "params", inlineFormalParameters(node.params, null));
-      if (node.returnType) oxcToESTree(node.returnType);
-      if (node.typeParameters) oxcToESTree(node.typeParameters);
-      setProp(
-        node,
-        "declare",
-        node.modifiers?.some((m) => m.kind === "declare") ?? false,
-      );
       break;
     case "ClassDeclaration":
     case "ClassExpression":
@@ -652,7 +652,11 @@ const inlineFormalParameters = (
   thisParam: TSThisParameter | null,
 ): TSESTree.Parameter[] => {
   const items: any[] = [];
-  if (thisParam) items.push({ type: "Identifier", name: "this" });
+  if (thisParam) {
+    const typeAnnotation = thisParam.typeAnnotation;
+    if (typeAnnotation) oxcToESTree(typeAnnotation);
+    items.push({ type: "Identifier", name: "this", typeAnnotation });
+  }
   for (const item of node.items) {
     items.push(inlineFormalParameter(item));
   }

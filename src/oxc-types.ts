@@ -429,7 +429,7 @@ export interface TSMappedType extends Span {
   type: "TSMappedType";
   typeParameter: TSTypeParameter;
   nameType: TSType | null;
-  typeAnnotation: TSTypeAnnotation | null;
+  typeAnnotation: TSType | null;
   optional: "true" | "+" | "-" | "none";
   readonly: "true" | "+" | "-" | "none";
 }

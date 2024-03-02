@@ -1,4 +1,11 @@
 #!/usr/bin/env bun
 import { compareCode } from "./compare-code";
 
-await compareCode(`type SameShape = { [Key in A]: never };`, "esbuild.d.ts");
+await compareCode(
+  `
+export declare class ByteBuffer {
+  finishSizePrefixed(this: Builder, root_table: Offset, opt_file_identifier?: string): void;
+}
+`,
+  "file.d.ts",
+);
