@@ -169,7 +169,7 @@ export interface Super extends Span {
 export interface ArrayExpression extends Span {
   type: "ArrayExpression";
   elements: ArrayExpressionElement[];
-  trailing_comma: Span | null;
+  trailingComma: Span | null;
 }
 export type ArrayExpressionElement = SpreadElement | Expression | Span;
 export interface SpreadElement extends Span {
@@ -625,7 +625,7 @@ export interface ArrayAssignmentTarget extends Span {
   type: "ArrayAssignmentTarget";
   elements: (AssignmentTargetMaybeDefault | null)[];
   rest: AssignmentTarget | null;
-  trailing_comma: Span | null;
+  trailingComma: Span | null;
 }
 export interface ObjectAssignmentTarget extends Span {
   type: "ObjectAssignmentTarget";
@@ -811,7 +811,7 @@ export interface NewExpression extends Span {
 export interface ObjectExpression extends Span {
   type: "ObjectExpression";
   properties: ObjectPropertyKind[];
-  trailing_comma: Span | null;
+  trailingComma: Span | null;
 }
 export type ObjectPropertyKind = ObjectProperty | SpreadElement;
 export interface ObjectProperty extends Span {

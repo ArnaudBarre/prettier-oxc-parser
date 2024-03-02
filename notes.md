@@ -25,7 +25,7 @@
 
 ### To change?
 
-- Using deprecated typeParameters on CallExpression/JSXOpeningElement/NewExpression/TaggedTemplateExpression/TSHeritageBase/TSImportType/TSTypeQuery/TSTypeReference
+- Using deprecated typeParameters on CallExpression/JSXOpeningElement/NewExpression/TaggedTemplateExpression/TSClassImplements/TSInterfaceHeritage/TSImportType/TSTypeQuery/TSTypeReference
 - Using deprecated superTypeParameters on ClassDeclaration
 - Usage of wide modifiers instead of declare/abstract boolean on appropriate nodes
 - ImportDeclaration/ExportAllDeclaration.attributes -> .withClause

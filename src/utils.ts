@@ -1,4 +1,4 @@
-import { type ParserOptions, parseSync } from "oxc-parser";
+import { type ParserOptions, parseSync } from "../../oxc/napi/parser/index.js";
 import type {
   BindingPattern,
   ExpressionStatement,
@@ -75,6 +75,7 @@ export const oxcToESTree = (node: Node): any => {
       oxcToESTree(node.argument);
       if (node.qualifier) oxcToESTree(node.qualifier);
       if (node.typeParameters) oxcToESTree(node.typeParameters);
+      setProp(node, "typeArguments", node.typeParameters);
       break;
     case "ExportNamedDeclaration":
       setProp(node, "attributes", []);
@@ -123,6 +124,7 @@ export const oxcToESTree = (node: Node): any => {
       oxcToESTree(node.callee);
       for (const arg of node.arguments) oxcToESTree(arg);
       if (node.typeParameters) oxcToESTree(node.typeParameters);
+      setProp(node, "typeArguments", node.typeParameters);
       break;
     case "IfStatement":
       oxcToESTree(node.test);
@@ -187,6 +189,7 @@ export const oxcToESTree = (node: Node): any => {
       if (node.typeParameters) {
         node.typeParameters = oxcToESTree(node.typeParameters);
       }
+      setProp(node, "typeArguments", node.typeParameters);
       break;
     case "LabeledStatement":
       oxcToESTree(node.label);
@@ -236,6 +239,7 @@ export const oxcToESTree = (node: Node): any => {
       if (node.typeParameters) {
         node.typeParameters = oxcToESTree(node.typeParameters);
       }
+      setProp(node, "typeArguments", node.typeParameters);
       break;
     case "TemplateLiteral":
       for (const expr of node.expressions) oxcToESTree(expr);
@@ -375,10 +379,12 @@ export const oxcToESTree = (node: Node): any => {
     case "TSTypeReference":
       oxcToESTree(node.typeName);
       if (node.typeParameters) oxcToESTree(node.typeParameters);
+      setProp(node, "typeArguments", node.typeParameters);
       break;
     case "TSTypeQuery":
       oxcToESTree(node.exprName);
       if (node.typeParameters) oxcToESTree(node.typeParameters);
+      setProp(node, "typeArguments", node.typeParameters);
       break;
     case "TSQualifiedName":
       oxcToESTree(node.left);
@@ -420,6 +426,7 @@ export const oxcToESTree = (node: Node): any => {
       for (const member of node.body.body) oxcToESTree(member);
       if (node.typeParameters) oxcToESTree(node.typeParameters);
       if (node.extends) for (const ext of node.extends) oxcToESTree(ext);
+      else setProp(node, "extends", []);
       setProp(
         node,
         "declare",
@@ -450,6 +457,7 @@ export const oxcToESTree = (node: Node): any => {
     case "TSClassImplements":
       oxcToESTree(node.expression);
       if (node.typeParameters) oxcToESTree(node.typeParameters);
+      setProp(node, "typeArguments", node.typeParameters);
       break;
     case "TSTypeParameterDeclaration":
       for (const param of node.params) oxcToESTree(param);
@@ -488,8 +496,8 @@ export const oxcToESTree = (node: Node): any => {
       if (node.nameType) oxcToESTree(node.nameType);
       if (node.typeAnnotation) oxcToESTree(node.typeAnnotation);
       // TODO: check if correct (ex typescript/lib/lib.es2020.promise.d.ts)
-      if (node.optional === "none") setProp(node, "optional", undefined);
-      if (node.readonly === "none") setProp(node, "readonly", undefined);
+      if (node.optional === "none") setProp(node, "optional", false);
+      if (node.readonly === "none") setProp(node, "readonly", false);
       break;
     case "TSConditionalType":
       oxcToESTree(node.checkType);
@@ -538,6 +546,11 @@ export const oxcToESTree = (node: Node): any => {
       setProp(node, "params", inlineFormalParameters(node.params, null));
       if (node.returnType) oxcToESTree(node.returnType);
       if (node.typeParameters) oxcToESTree(node.typeParameters);
+      setProp(
+        node,
+        "declare",
+        node.modifiers?.some((m) => m.kind === "declare") ?? false,
+      );
       break;
     case "ClassDeclaration":
     case "ClassExpression":
@@ -618,6 +631,7 @@ export const oxcToESTree = (node: Node): any => {
     case "JSXOpeningElement":
       for (const attr of node.attributes) oxcToESTree(attr);
       if (node.typeParameters) oxcToESTree(node.typeParameters);
+      setProp(node, "typeArguments", node.typeParameters);
       break;
     case "MetaProperty":
       oxcToESTree(node.meta);
