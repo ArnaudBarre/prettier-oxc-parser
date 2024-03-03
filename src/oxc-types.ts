@@ -120,6 +120,7 @@ export interface NullLiteral extends Span {
 export interface NumericLiteral extends Span {
   type: "NumericLiteral";
   value: number;
+  raw: string;
 }
 export interface BigintLiteral extends Span {
   type: "BigintLiteral";
@@ -152,7 +153,7 @@ export interface IdentifierReference extends Span {
   type: "IdentifierReference";
   name: string;
   referenceId: number | null;
-  referenceFlag: { None: 0; Read: 1; Write: 2; Type: 4; ReadWrite: 3 };
+  referenceFlag: { None: 0; Read: 0b1; Write: 0b10; Type: 0b100; ReadWrite: 0b11 };
 }
 export interface MetaProperty extends Span {
   type: "MetaProperty";
@@ -200,6 +201,7 @@ export interface FormalParameter extends Span {
   pattern: BindingPattern;
   accessibility: ("private" | "protected" | "public") | null;
   readonly: boolean;
+  override: boolean;
   decorators: Decorator[];
 }
 export interface BindingPattern {
@@ -368,7 +370,6 @@ export interface TSThisParameter extends Span {
 }
 export interface TSImportType extends Span {
   type: "TSImportType";
-  isTypeOf: boolean;
   argument: TSType;
   qualifier: TSTypeName | null;
   attributes: TSImportAttributes | null;
@@ -471,6 +472,7 @@ export interface TSIndexSignature extends Span {
   type: "TSIndexSignature";
   parameters: TSIndexSignatureName[];
   typeAnnotation: TSTypeAnnotation;
+  readonly: boolean;
 }
 export interface TSIndexSignatureName extends Span {
   type: "TSIndexSignatureName";
@@ -523,9 +525,10 @@ export interface TSTypePredicate extends Span {
 export type TSTypePredicateName = IdentifierName | TSThisType;
 export interface TSTypeQuery extends Span {
   type: "TSTypeQuery";
-  exprName: TSTypeName;
+  exprName: TSTypeQueryExprName;
   typeParameters: TSTypeParameterInstantiation | null;
 }
+export type TSTypeQueryExprName = TSTypeName | TSImportType;
 export interface TSTypeReference extends Span {
   type: "TSTypeReference";
   typeName: TSTypeName;
@@ -727,7 +730,7 @@ export interface MethodDefinition extends Span {
   decorators: Decorator[];
 }
 export interface Function extends Span {
-  type: "FunctionDeclaration" | "FunctionExpression" | "TSDeclareFunction";
+  type: "FunctionDeclaration" | "FunctionExpression" | "TSDeclareFunction" | "TSEmptyBodyFunctionExpression";
   id: BindingIdentifier | null;
   generator: boolean;
   async: boolean;

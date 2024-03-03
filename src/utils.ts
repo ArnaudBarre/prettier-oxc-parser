@@ -1,4 +1,4 @@
-import { type ParserOptions, parseSync } from "../../oxc/napi/parser/index.js";
+import { parseSync } from "../../oxc/napi/parser/index.js";
 import type {
   BindingPattern,
   ExpressionStatement,
@@ -10,8 +10,11 @@ import type {
 } from "./oxc-types.ts";
 import type { TSESTree } from "@typescript-eslint/types";
 
-export const oxcParse = (code: string, options: ParserOptions) => {
-  const result = parseSync(code, options);
+export const oxcParse = (code: string, filename: string) => {
+  const result = parseSync(code, {
+    sourceFilename: filename,
+    preserveParens: false,
+  });
   if (result.errors.length) throw new Error(result.errors[0]);
   const program = JSON.parse(result.program) as Program & {
     comments: {
@@ -97,7 +100,6 @@ export const oxcToESTree = (node: Node): any => {
       if (node.exported) oxcToESTree(node.exported);
       break;
     case "ExpressionStatement":
-    case "ParenthesizedExpression":
     case "ChainExpression":
     case "Decorator":
     case "TSExportAssignment":
@@ -112,7 +114,7 @@ export const oxcToESTree = (node: Node): any => {
       break;
     case "AssignmentExpression":
     case "AssignmentPattern":
-      oxcToESTree(node.left);
+      node.left = oxcToESTree(node.left);
       oxcToESTree(node.right);
       break;
     case "BinaryExpression":
@@ -231,7 +233,7 @@ export const oxcToESTree = (node: Node): any => {
       setProp(node, "extra", { rawValue: node.value, raw: `"${node.value}"` });
       break;
     case "NumericLiteral":
-      setProp(node, "extra", { rawValue: node.value, raw: `${node.value}` });
+      setProp(node, "extra", { rawValue: node.value, raw: `${node.raw}` });
       break;
     case "TaggedTemplateExpression":
       oxcToESTree(node.tag);
@@ -263,8 +265,9 @@ export const oxcToESTree = (node: Node): any => {
       if (node.returnType) oxcToESTree(node.returnType);
       break;
     case "FunctionDeclaration":
-    case "FunctionExpression":
     case "TSDeclareFunction":
+    case "FunctionExpression":
+    case "TSEmptyBodyFunctionExpression":
       const declare = node.modifiers?.some((m) => m.kind === "declare");
       if (declare) setProp(node, "declare", true);
       if (node.id) oxcToESTree(node.id);
@@ -673,10 +676,22 @@ const inlineFormalParameters = (
   return items;
 };
 
-const inlineFormalParameter = (node: FormalParameter): TSESTree.Parameter =>
-  inlineBindingPattern(node.pattern);
+const inlineFormalParameter = (node: FormalParameter) => {
+  // https://github.com/typescript-eslint/typescript-eslint/blob/6954a4a463f9a2a1c20e41c91ee2c75c953dcc9f/packages/typescript-estree/src/convert.ts#L1738-L1748
+  if (node.accessibility || node.readonly || node.override) {
+    return {
+      type: "TSParameterProperty",
+      accessibility: node.accessibility,
+      readonly: node.readonly,
+      override: node.override,
+      parameter: inlineBindingPattern(node.pattern),
+    };
+  } else {
+    return inlineBindingPattern(node.pattern);
+  }
+};
 
-const inlineBindingPattern = (node: BindingPattern): TSESTree.Parameter => {
+const inlineBindingPattern = (node: BindingPattern) => {
   const { kind, typeAnnotation, optional } = node;
   if (typeAnnotation) oxcToESTree(typeAnnotation);
   return typeAnnotation

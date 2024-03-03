@@ -15,7 +15,7 @@ const content = readFileSync(
   import.meta.dir + "/../../oxc/npm/parser-wasm/oxc_parser_wasm.d.ts",
   "utf-8",
 );
-const ast = oxcParse(content, { sourceFilename: "oxc_parser_wasm.d.ts" });
+const ast = oxcParse(content, "oxc_parser_wasm.d.ts");
 const exports: Statement[] = [];
 const nodes: string[] = [];
 const visited = new Map<string, TSType | null>();
@@ -130,7 +130,7 @@ const getType = (name: string) => {
 visitNode("Program");
 
 const nodeUnion = `export type Node = ${nodes.join(" | ")};`;
-const nodeAst = oxcParse(nodeUnion, { sourceFilename: "node.d.ts" });
+const nodeAst = oxcParse(nodeUnion, "node.d.ts");
 exports.push(nodeAst.body[0]);
 
 writeFileSync(

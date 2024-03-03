@@ -5,7 +5,7 @@ export const parsers: Plugin["parsers"] = {
   typescript: {
     astFormat: "estree",
     parse: (text, options) => {
-      const ast = oxcParse(text, { sourceFilename: options.filepath });
+      const ast = oxcParse(text, options.filepath);
       return oxcToESTree(ast);
     },
     locStart: (node) => node.start,

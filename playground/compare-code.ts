@@ -7,7 +7,7 @@ import { compareAst } from "./compare-ast";
 import { defaultPlugin } from "./defaultPlugin";
 
 export const compareCode = async (code: string, filename: string) => {
-  const ast = oxcParse(code, { sourceFilename: filename });
+  const ast = oxcParse(code, filename);
   writeFileSync("tmp/ast.json", JSON.stringify(ast, null, 2));
   oxcToESTree(ast);
   writeFileSync("tmp/ast-updated.json", JSON.stringify(ast, null, 2));
