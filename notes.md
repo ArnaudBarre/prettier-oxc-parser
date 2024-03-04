@@ -2,6 +2,8 @@
 
 ## Current blockers/tasks
 
+- https://github.com/oxc-project/oxc/issues/959
+- https://github.com/oxc-project/oxc/issues/2592
 - Cleanup import attribute AST
 
 ## Nice to have

@@ -8,7 +8,7 @@ export const compareAst = (oxc: ReturnType<typeof oxcParse>) => {
     assert(a === b, `${c ? `${c}: ` : ""}${a} !== ${b}`);
   };
 
-  check(oxc.comments.length, ts.comments.length);
+  check(oxc.comments.length, ts.comments.length, "comments.length");
   for (let i = 0; i < oxc.comments.length; i++) {
     const a = oxc.comments[i];
     const b = ts.comments[i];

@@ -398,7 +398,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         setProp(node, "kind", "init");
         break;
       case "CatchClause":
-        if (node.param) toESTree(node.param);
+        if (node.param) node.param = toESTree(node.param);
         toESTree(node.body);
         break;
       case "TryStatement":
@@ -455,6 +455,11 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
           node,
           "declare",
           node.modifiers?.some((m) => m.kind === "declare"),
+        );
+        setProp(
+          node,
+          "const",
+          node.modifiers?.some((m) => m.kind === "const"),
         );
         break;
       case "TSEnumMember":
@@ -704,6 +709,8 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
     if (node.accessibility || node.readonly || node.override) {
       return {
         type: "TSParameterProperty",
+        start: node.start,
+        end: node.end,
         accessibility: node.accessibility,
         readonly: node.readonly,
         override: node.override,

@@ -5,13 +5,14 @@ import { compareCode } from "./compare-code";
 
 const glob = new Glob(process.argv[2] ?? "**/*.ts");
 
-for await (const file of glob.scan(".")) {
+const folder = "../carbon-calculator";
+for await (const file of glob.scan(folder)) {
   if (file.startsWith("tmp/")) continue;
   // Too big?
-  if (file === "node_modules/typescript/lib/lib.dom.d.ts") continue;
-  if (file === "node_modules/typescript/lib/lib.webworker.d.ts") continue;
+  if (file.endsWith("typescript/lib/lib.dom.d.ts")) continue;
+  if (file.endsWith("typescript/lib/lib.webworker.d.ts")) continue;
   console.log(file);
-  const code = readFileSync(file, "utf-8");
+  const code = readFileSync(`${folder}/${file}`, "utf-8");
   if (/[^\x00-\x7F]/.test(code)) continue; // missing utf-16 support
   const eq = await compareCode(code, file);
   if (!eq) break;
