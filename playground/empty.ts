@@ -8,4 +8,5 @@ export declare class ByteBuffer {
 }
 `,
   "file.d.ts",
+  true,
 );

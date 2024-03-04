@@ -41,8 +41,8 @@ export const compareAst = (oxc: ReturnType<typeof oxcParse>) => {
     c += `(${oxc.type})`;
     if (oxc.type && oxc.type !== "TemplateElement") {
       // TemplateElement span in TS are contains `${}` chars
-      check(oxc.start, ts.range[0], c);
-      check(oxc.end, ts.range[1], c);
+      check(oxc.start, ts.range[0], `${c}.start`);
+      check(oxc.end, ts.range[1], `${c}.end`);
     }
     cleanTSNode(ts);
     const tsKeys = Object.keys(ts)

@@ -327,6 +327,8 @@ export const oxcToESTree = (node: Node): any => {
         node.elements.push({
           // @ts-expect-error
           type: "RestElement",
+          start: node.rest.start,
+          end: node.rest.end,
           argument: oxcToESTree(node.rest.argument),
         });
         deleteProp(node, "rest");
@@ -342,6 +344,9 @@ export const oxcToESTree = (node: Node): any => {
         node.elements.push({
           // @ts-expect-error
           type: "RestElement",
+          // https://github.com/oxc-project/oxc/pull/2567#issuecomment-1975401867
+          start: node.rest.start - 3,
+          end: node.rest.end,
           argument: oxcToESTree(node.rest),
         });
         deleteProp(node, "rest");
@@ -353,6 +358,8 @@ export const oxcToESTree = (node: Node): any => {
         node.properties.push({
           // @ts-expect-error
           type: "RestElement",
+          start: node.rest.start,
+          end: node.rest.end,
           argument: oxcToESTree(node.rest.argument),
         });
         deleteProp(node, "rest");
@@ -365,6 +372,9 @@ export const oxcToESTree = (node: Node): any => {
         node.properties.push({
           // @ts-expect-error
           type: "RestElement",
+          // https://github.com/oxc-project/oxc/pull/2567#issuecomment-1975401867
+          start: node.rest.start - 3,
+          end: node.rest.end,
           argument: oxcToESTree(node.rest),
         });
         deleteProp(node, "rest");
@@ -668,6 +678,8 @@ const inlineFormalParameters = (
     if (typeAnnotation) oxcToESTree(typeAnnotation);
     items.push({
       type: "RestElement",
+      start: node.rest.start,
+      end: node.rest.end,
       argument: oxcToESTree(node.rest.argument.kind),
       typeAnnotation,
       optional: node.rest.argument.optional,
