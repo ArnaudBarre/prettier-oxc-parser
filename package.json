@@ -1,18 +1,20 @@
 {
   "name": "prettier-oxc-parser",
-  "module": "index.ts",
   "type": "module",
+  "private": true,
   "peerDependencies": {
     "prettier": "^3"
   },
   "dependencies": {
-    "oxc-parser": "^0.7.0"
+    "oxc-parser": "../oxc/napi/parser"
   },
   "devDependencies": {
-    "@arnaud-barre/tnode": "^0.19.2",
-    "@types/bun": "^1.0.5",
-    "@typescript-eslint/types": "^6.21.0",
+    "@babel/generator": "^7.23.6",
+    "@babel/parser": "^7.24.0",
+    "@types/babel__generator": "^7.6.8",
+    "@types/bun": "^1.0.8",
+    "@typescript-eslint/types": "^7.1.0",
     "prettier": "^3.2.5",
-    "typescript": "^5.0.0"
+    "typescript": "^5.3.3"
   }
 }

@@ -2,7 +2,7 @@ import { $ } from "bun";
 import { writeFileSync } from "node:fs";
 import { format } from "prettier";
 import * as plugin from "../src/index";
-import { oxcParse, oxcToESTree } from "../src/utils";
+import { oxcParse } from "../src/utils";
 import { compareAst } from "./compare-ast";
 import { defaultPlugin } from "./defaultPlugin";
 
@@ -11,19 +11,17 @@ export const compareCode = async (
   filename: string,
   forceCompareAst?: boolean,
 ) => {
-  const ast = oxcParse(code, filename);
-  writeFileSync("tmp/ast.json", JSON.stringify(ast, null, 2));
-  oxcToESTree(ast);
+  const ast = oxcParse(code, filename, true);
   writeFileSync("tmp/ast-updated.json", JSON.stringify(ast, null, 2));
 
   const withoutPlugin = await format(code, {
-    filepath: "example.ts",
+    filepath: filename,
     plugins: [defaultPlugin],
   });
   writeFileSync("tmp/without-plugin.ts", withoutPlugin);
   try {
     const withPlugin = await format(code, {
-      filepath: "example.ts",
+      filepath: filename,
       plugins: [plugin],
     });
     writeFileSync("tmp/with-plugin.ts", withPlugin);

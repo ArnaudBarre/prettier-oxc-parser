@@ -1,26 +1,24 @@
 #!/usr/bin/env bun
 import { readFileSync, writeFileSync } from "node:fs";
+import * as B from "@babel/types";
 import { format } from "prettier";
-import { oxcParse, oxcToESTree } from "../src/utils.ts";
-import type {
-  Program,
-  Statement,
-  TSArrayType,
-  TSType,
-  TSTypeReference,
-  TSUnionType,
-} from "../src/oxc-types.ts";
+import { parse } from "@babel/parser";
+import generate from "@babel/generator";
 
 const content = readFileSync(
   import.meta.dir + "/../../oxc/npm/parser-wasm/oxc_parser_wasm.d.ts",
   "utf-8",
 );
-const ast = oxcParse(content, "oxc_parser_wasm.d.ts");
-const exports: Statement[] = [];
+const { program: ast } = parse(content, {
+  sourceType: "module",
+  plugins: ["typescript"],
+  sourceFilename: "oxc_parser_wasm.d.ts",
+});
+const exports: B.Statement[] = [];
 const nodes: string[] = [];
-const visited = new Map<string, TSType | null>();
+const visited = new Map<string, B.TSType | null>();
 
-const visitNode = (name: string): TSType | null => {
+const visitNode = (name: string): B.TSType | null => {
   const cached = visited.get(name);
   if (cached !== undefined) return cached;
 
@@ -32,7 +30,7 @@ const visitNode = (name: string): TSType | null => {
     ) {
       exports.push(type.exp);
       visited.set(name, null);
-      for (const t of type.decl.types) handleReference(t as TSTypeReference);
+      for (const t of type.decl.types) handleReference(t as B.TSTypeReference);
     } else {
       console.log(`Inline ${name}`);
       visited.set(name, type.decl);
@@ -55,7 +53,7 @@ const visitNode = (name: string): TSType | null => {
           `Unexpected typeAnnotation type ${sig.typeAnnotation?.type}`,
         );
       }
-      if (sig.key.type === "IdentifierName" && sig.key.name === "type") {
+      if (sig.key.type === "Identifier" && sig.key.name === "type") {
         nodes.push(name);
       }
       switch (sig.typeAnnotation.typeAnnotation.type) {
@@ -78,7 +76,7 @@ const visitNode = (name: string): TSType | null => {
   return null;
 };
 
-const handleUnionType = ({ types }: TSUnionType) => {
+const handleUnionType = ({ types }: B.TSUnionType) => {
   for (const [i, t] of types.entries()) {
     if (t.type === "TSTypeReference") {
       const inlineType = handleReference(t);
@@ -89,15 +87,15 @@ const handleUnionType = ({ types }: TSUnionType) => {
   }
 };
 
-const handleArrayType = (arrayType: TSArrayType) => {
+const handleArrayType = (arrayType: B.TSArrayType) => {
   if (arrayType.elementType.type === "TSTypeReference") {
     const inlineType = handleReference(arrayType.elementType);
     if (inlineType) arrayType.elementType = inlineType;
   }
 };
 
-const handleReference = ({ typeName }: TSTypeReference): TSType | null => {
-  if (typeName.type !== "IdentifierReference") {
+const handleReference = ({ typeName }: B.TSTypeReference): B.TSType | null => {
+  if (typeName.type !== "Identifier") {
     throw new Error(`Unexpected typeName type ${typeName.type}`);
   }
   return visitNode(typeName.name);
@@ -129,35 +127,12 @@ const getType = (name: string) => {
 
 visitNode("Program");
 
-const nodeUnion = `export type Node = ${nodes.join(" | ")};`;
-const nodeAst = oxcParse(nodeUnion, "node.d.ts");
-exports.push(nodeAst.body[0]);
+for (const it of exports) it.trailingComments = null;
+const code =
+  generate(B.program(exports), { concise: true }).code +
+  `\nexport type Node = ${nodes.join(" | ")};`;
 
 writeFileSync(
   import.meta.dir + "/../src/oxc-types.ts",
-  await format("--", {
-    filepath: "oxc-types.ts",
-    printWidth: 120,
-    plugins: [
-      {
-        parsers: {
-          typescript: {
-            astFormat: "estree",
-            parse: () => {
-              const newAst = {
-                type: "Program",
-                start: 0,
-                end: 5000,
-                body: exports,
-              } as Program;
-              oxcToESTree(newAst);
-              return newAst;
-            },
-            locStart: (node) => node.start,
-            locEnd: (node) => node.end,
-          },
-        },
-      },
-    ],
-  }),
+  await format(code, { filepath: "oxc-types.ts", printWidth: 120 }),
 );
