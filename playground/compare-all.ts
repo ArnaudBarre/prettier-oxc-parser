@@ -3,7 +3,7 @@ import { Glob } from "bun";
 import { readFileSync } from "node:fs";
 import { compareCode } from "./compare-code";
 
-const glob = new Glob("**/*.ts");
+const glob = new Glob(process.argv[2] ?? "**/*.ts");
 
 for await (const file of glob.scan(".")) {
   if (file.startsWith("tmp/")) continue;

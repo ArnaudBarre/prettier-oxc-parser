@@ -241,6 +241,11 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "NumericLiteral":
         setProp(node, "extra", { rawValue: node.value, raw: `${node.raw}` });
         break;
+      case "RegExpLiteral":
+        setProp(node, "type", "Literal");
+        setProp(node, "value", {});
+        setProp(node, "raw", code.slice(node.start, node.end));
+        break;
       case "TaggedTemplateExpression":
         toESTree(node.tag);
         toESTree(node.quasi);
