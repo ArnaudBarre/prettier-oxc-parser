@@ -13,7 +13,6 @@ for await (const file of glob.scan(folder)) {
   if (file.endsWith("typescript/lib/lib.webworker.d.ts")) continue;
   console.log(file);
   const code = readFileSync(`${folder}/${file}`, "utf-8");
-  if (/[^\x00-\x7F]/.test(code)) continue; // missing utf-16 support
   const eq = await compareCode(code, file);
   if (!eq) break;
 }

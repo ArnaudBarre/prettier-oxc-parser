@@ -6,11 +6,14 @@ import type {
   FormalParameters,
   Node,
   Program,
+  Span,
   TSThisParameter,
 } from "./oxc-types.ts";
 import type { TSESTree } from "@typescript-eslint/types";
 import { writeFileSync } from "node:fs";
 
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 export const oxcParse = (code: string, filename: string, debug?: boolean) => {
   const result = parseSync(code, {
     sourceFilename: filename,
@@ -30,6 +33,9 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
     if (comment.type === "Block") comment.end += 2;
   }
   setProp(program, "comments", result.comments);
+
+  if (debug) writeFileSync("tmp/ast.json", JSON.stringify(program, null, 2));
+
   if (program.hashbang) {
     program.comments.unshift({
       type: "Line",
@@ -39,11 +45,24 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
     });
   }
 
-  if (debug) writeFileSync("tmp/ast.json", JSON.stringify(program, null, 2));
+  // https://github.com/oxc-project/oxc/issues/959#issuecomment-1976418498
+  const hasUTF16 = /[^\x00-\x7F]/.test(code);
+  const codeUTF8 = hasUTF16 ? encoder.encode(code) : null;
+  const updateSpan = (span: Span) => {
+    if (hasUTF16) {
+      span.start = decoder.decode(codeUTF8!.slice(0, span.start)).length;
+      span.end = decoder.decode(codeUTF8!.slice(0, span.end)).length;
+    }
+  };
+
+  for (const comment of program.comments) updateSpan(comment);
 
   // This is inlined so that StringLiteral.raw can be created
   // from the code variable without passing in each call
+  // Also used for span utf16 conversion
   const toESTree = (node: Node): any => {
+    // https://github.com/oxc-project/oxc/issues/2605
+    if (hasUTF16) updateSpan(node);
     switch (node.type) {
       case "Program":
       // TODO: Program.hashbang?
@@ -105,6 +124,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "ExpressionStatement":
       case "ChainExpression":
       case "Decorator":
+      case "Directive":
       case "TSExportAssignment":
       case "TSExternalModuleReference":
       case "TSNonNullExpression":
@@ -116,10 +136,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         for (const expr of node.expressions) toESTree(expr);
         break;
       case "AssignmentExpression":
-      case "AssignmentPattern":
-        node.left = toESTree(node.left);
-        toESTree(node.right);
-        break;
       case "BinaryExpression":
       case "LogicalExpression":
         toESTree(node.left);
@@ -177,9 +193,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "AwaitExpression":
       case "SpreadElement":
       case "JSXSpreadAttribute":
-      case "BindingRestElement":
-        toESTree(node.argument);
-        break;
       case "ReturnStatement":
       case "YieldExpression":
         if (node.argument) toESTree(node.argument);
@@ -225,12 +238,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         node.object = toESTree(node.object);
         setProp(node, "property", toESTree(node.field));
         deleteProp(node, "field");
-        break;
-      case "LabelIdentifier":
-      case "IdentifierReference":
-      case "IdentifierName":
-      case "BindingIdentifier":
-        setProp(node, "type", "Identifier");
         break;
       case "StringLiteral":
         setProp(node, "extra", {
@@ -313,11 +320,9 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         deleteProp(node, "modifiers");
         break;
       case "VariableDeclarator":
-        node.id = toESTree(node.id);
+        handleBindingPattern(node.id);
         if (node.init) toESTree(node.init);
         break;
-      case "BindingPattern":
-        return inlineBindingPattern(node);
       case "ArrayExpression":
         for (let i = 0; i < node.elements.length; i++) {
           const el = node.elements[i];
@@ -332,7 +337,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "ArrayPattern":
         for (let i = 0; i < node.elements.length; i++) {
           const el = node.elements[i];
-          if (el) node.elements[i] = toESTree(el);
+          if (el) handleBindingPattern(el);
         }
         if (node.rest) {
           node.elements.push({
@@ -340,7 +345,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
             type: "RestElement",
             start: node.rest.start,
             end: node.rest.end,
-            argument: toESTree(node.rest.argument),
+            argument: handleBindingPattern(node.rest.argument),
           });
           deleteProp(node, "rest");
         }
@@ -355,10 +360,9 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
           node.elements.push({
             // @ts-expect-error
             type: "RestElement",
-            // https://github.com/oxc-project/oxc/pull/2567#issuecomment-1975401867
-            start: node.rest.start - 3,
+            start: node.rest.start,
             end: node.rest.end,
-            argument: toESTree(node.rest),
+            argument: toESTree(node.rest.target),
           });
           deleteProp(node, "rest");
         }
@@ -371,7 +375,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
             type: "RestElement",
             start: node.rest.start,
             end: node.rest.end,
-            argument: toESTree(node.rest.argument),
+            argument: handleBindingPattern(node.rest.argument),
           });
           deleteProp(node, "rest");
         }
@@ -383,10 +387,9 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
           node.properties.push({
             // @ts-expect-error
             type: "RestElement",
-            // https://github.com/oxc-project/oxc/pull/2567#issuecomment-1975401867
-            start: node.rest.start - 3,
+            start: node.rest.start,
             end: node.rest.end,
-            argument: toESTree(node.rest),
+            argument: toESTree(node.rest.target),
           });
           deleteProp(node, "rest");
         }
@@ -394,11 +397,11 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "BindingProperty":
         setProp(node, "type", "Property");
         toESTree(node.key);
-        node.value = toESTree(node.value);
+        handleBindingPattern(node.value);
         setProp(node, "kind", "init");
         break;
       case "CatchClause":
-        if (node.param) node.param = toESTree(node.param);
+        if (node.param) handleBindingPattern(node.param);
         toESTree(node.body);
         break;
       case "TryStatement":
@@ -468,7 +471,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         break;
       case "TSInterfaceDeclaration":
         toESTree(node.id);
-        for (const member of node.body.body) toESTree(member);
+        toESTree(node.body);
         if (node.typeParameters) toESTree(node.typeParameters);
         if (node.extends) for (const ext of node.extends) toESTree(ext);
         else setProp(node, "extends", []);
@@ -478,6 +481,9 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
           node.modifiers?.some((m) => m.kind === "declare"),
         );
         deleteProp(node, "modifiers");
+        break;
+      case "TSInterfaceBody":
+        for (const member of node.body) toESTree(member);
         break;
       case "TSTypeAliasDeclaration":
         toESTree(node.id);
@@ -585,11 +591,12 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "ClassExpression":
         if (node.id) toESTree(node.id);
         if (node.superClass) toESTree(node.superClass);
-        for (const decl of node.body.body) toESTree(decl);
+        toESTree(node.body);
         if (node.superTypeParameters) toESTree(node.superTypeParameters);
         if (node.typeParameters) toESTree(node.typeParameters);
         for (const d of node.decorators) toESTree(d);
         if (node.implements) for (const i of node.implements) toESTree(i);
+        else setProp(node, "implements", []);
         setProp(
           node,
           "abstract",
@@ -600,6 +607,9 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
           "declare",
           node.modifiers?.some((m) => m.kind === "declare"),
         );
+        break;
+      case "ClassBody":
+        for (const decl of node.body) toESTree(decl);
         break;
       case "AccessorProperty":
         toESTree(node.key);
@@ -684,7 +694,14 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
     if (thisParam) {
       const typeAnnotation = thisParam.typeAnnotation;
       if (typeAnnotation) toESTree(typeAnnotation);
-      items.push({ type: "Identifier", name: "this", typeAnnotation });
+      updateSpan(thisParam);
+      items.push({
+        type: "Identifier",
+        start: thisParam.start,
+        end: thisParam.end,
+        name: "this",
+        typeAnnotation,
+      });
     }
     for (const item of node.items) {
       items.push(inlineFormalParameter(item));
@@ -692,11 +709,12 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
     if (node.rest) {
       const typeAnnotation = node.rest.argument.typeAnnotation;
       if (typeAnnotation) toESTree(typeAnnotation);
+      updateSpan(node.rest);
       items.push({
         type: "RestElement",
         start: node.rest.start,
         end: node.rest.end,
-        argument: toESTree(node.rest.argument.kind),
+        argument: handleBindingPattern(node.rest.argument),
         typeAnnotation,
         optional: node.rest.argument.optional,
       });
@@ -707,6 +725,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
   const inlineFormalParameter = (node: FormalParameter) => {
     // https://github.com/typescript-eslint/typescript-eslint/blob/6954a4a463f9a2a1c20e41c91ee2c75c953dcc9f/packages/typescript-estree/src/convert.ts#L1738-L1748
     if (node.accessibility || node.readonly || node.override) {
+      updateSpan(node);
       return {
         type: "TSParameterProperty",
         start: node.start,
@@ -714,24 +733,19 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         accessibility: node.accessibility,
         readonly: node.readonly,
         override: node.override,
-        parameter: inlineBindingPattern(node.pattern),
+        parameter: handleBindingPattern(node.pattern),
       };
     } else {
-      return inlineBindingPattern(node.pattern);
+      return handleBindingPattern(node.pattern);
     }
   };
 
-  const inlineBindingPattern = (node: BindingPattern) => {
-    const { kind, typeAnnotation, optional } = node;
-    if (typeAnnotation) toESTree(typeAnnotation);
-    return typeAnnotation
-      ? {
-          ...toESTree(kind),
-          end: typeAnnotation.end,
-          typeAnnotation,
-          optional,
-        }
-      : { ...toESTree(kind), optional };
+  const handleBindingPattern = (node: BindingPattern) => {
+    if (node.typeAnnotation) {
+      toESTree(node.typeAnnotation);
+      node.end = node.typeAnnotation.end;
+    }
+    return toESTree(node);
   };
 
   return toESTree(program);

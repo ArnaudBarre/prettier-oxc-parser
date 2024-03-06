@@ -4,6 +4,7 @@ import * as B from "@babel/types";
 import { format } from "prettier";
 import { parse } from "@babel/parser";
 import generate from "@babel/generator";
+import assert from "node:assert";
 
 const content = readFileSync(
   import.meta.dir + "/../../oxc/npm/parser-wasm/oxc_parser_wasm.d.ts",
@@ -30,9 +31,33 @@ const visitNode = (name: string): B.TSType | null => {
     ) {
       exports.push(type.exp);
       visited.set(name, null);
-      for (const t of type.decl.types) handleReference(t as B.TSTypeReference);
+      const types: B.TSTypeReference[] = [];
+      for (const item of type.decl.types) {
+        const t = item as B.TSTypeReference;
+        if (
+          t.typeName.type === "Identifier" &&
+          t.typeName.name === "ParenthesizedExpression"
+        ) {
+          continue;
+        }
+        handleReference(t);
+        types.push(t);
+      }
+      type.decl.types = types;
+    } else if (type.decl.type === "TSIntersectionType") {
+      assert(name === "BindingPattern", `Unexpected intersection ${name}`);
+      exports.push(type.exp);
+      visited.set(name, null);
+      assert(
+        type.decl.types.length === 2 &&
+          type.decl.types[1].type === "TSParenthesizedType" &&
+          type.decl.types[1].typeAnnotation.type === "TSUnionType",
+        "Unexpected BindingPattern structure",
+      );
+      for (const t of type.decl.types[1].typeAnnotation.types) {
+        if (t.type === "TSTypeReference") handleReference(t);
+      }
     } else {
-      console.log(`Inline ${name}`);
       visited.set(name, type.decl);
       return type.decl;
     }

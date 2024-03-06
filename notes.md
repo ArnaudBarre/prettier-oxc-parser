@@ -3,7 +3,6 @@
 ## Current blockers/tasks
 
 - https://github.com/oxc-project/oxc/issues/959
-- https://github.com/oxc-project/oxc/issues/2592
 - Cleanup import attribute AST
 
 ## Nice to have
@@ -31,6 +30,7 @@
 - Using deprecated superTypeParameters on ClassDeclaration
 - Usage of wide modifiers instead of declare/abstract boolean on appropriate nodes
 - TSInterfaceDeclaration.extends null
+- ClassDeclaration.implements null
 - ImportDeclaration/ExportAllDeclaration.attributes -> .withClause
 - TSImportAttribute -> ImportAttribute
 - TSImportAttribute value should be StringLiteral

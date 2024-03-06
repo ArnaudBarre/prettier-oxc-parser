@@ -3,9 +3,7 @@ import { compareCode } from "./compare-code";
 
 await compareCode(
   `
-export declare class ByteBuffer {
-  finishSizePrefixed(this: Builder, root_table: Offset, opt_file_identifier?: string): void;
-}
+type C = T extends (...args: infer A1) => unknown ? A1 : never;
 `,
   "file.d.ts",
   true,
