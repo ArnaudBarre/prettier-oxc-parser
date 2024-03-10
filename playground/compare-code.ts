@@ -35,7 +35,6 @@ export const compareCode = async (
       compareAst(ast);
       return true;
     } else {
-      console.log("✅");
       return true;
     }
   } catch (e) {

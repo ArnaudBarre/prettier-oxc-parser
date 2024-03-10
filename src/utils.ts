@@ -29,11 +29,16 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       end: number;
     }[];
   };
+  setProp(program, "comments", []);
+  // https://github.com/oxc-project/oxc/issues/2674
+  const commentsStarts = new Set<number>();
   for (const comment of result.comments) {
+    if (commentsStarts.has(comment.start)) continue;
+    commentsStarts.add(comment.start);
     comment.start -= 2;
     if (comment.type === "Block") comment.end += 2;
+    program.comments.push(comment);
   }
-  setProp(program, "comments", result.comments);
 
   if (debug) writeFileSync("tmp/ast.json", JSON.stringify(program, null, 2));
 
@@ -239,6 +244,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         break;
       case "StaticMemberExpression":
         setProp(node, "type", "MemberExpression");
+        setProp(node, "computed", false);
         node.object = toESTree(node.object);
         toESTree(node.property);
         break;
@@ -256,13 +262,20 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         deleteProp(node, "field");
         break;
       case "StringLiteral":
-        setProp(node, "extra", {
-          rawValue: node.value,
-          raw: code.slice(node.start, node.end),
-        });
+        setProp(node, "type", "Literal");
+        setProp(node, "raw", code.slice(node.start, node.end));
+        break;
+      case "BooleanLiteral":
+        setProp(node, "type", "Literal");
+        setProp(node, "raw", node.value ? "true" : "false");
         break;
       case "NumericLiteral":
-        setProp(node, "extra", { rawValue: node.value, raw: `${node.raw}` });
+        setProp(node, "type", "Literal");
+        break;
+      case "NullLiteral":
+        setProp(node, "type", "Literal");
+        setProp(node, "value", null);
+        setProp(node, "raw", "null");
         break;
       case "BigIntLiteral":
         setProp(node, "extra", {
@@ -284,6 +297,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         setProp(node, "typeArguments", node.typeParameters);
         break;
       case "TemplateLiteral":
+        for (const quasi of node.quasis) toESTree(quasi);
         for (const expr of node.expressions) toESTree(expr);
         break;
       case "ObjectExpression":
@@ -554,10 +568,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         toESTree(node.typeAnnotation);
         break;
       case "TSIndexSignature":
-        for (const param of node.parameters) {
-          setProp(param, "type", "Identifier");
-          toESTree(param.typeAnnotation);
-        }
+        for (const param of node.parameters) toESTree(param.typeAnnotation);
         toESTree(node.typeAnnotation);
         break;
       case "TSInferType":
@@ -690,13 +701,26 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         toESTree(node.property);
         break;
       case "JSXFragment":
-      case "JSXElement":
+        toESTree(node.openingFragment);
         for (const child of node.children) toESTree(child);
+        toESTree(node.closingFragment);
+        break;
+      case "JSXElement":
+        toESTree(node.openingElement);
+        for (const child of node.children) toESTree(child);
+        if (node.closingElement) toESTree(node.closingElement);
         break;
       case "JSXOpeningElement":
+        toESTree(node.name);
         for (const attr of node.attributes) toESTree(attr);
         if (node.typeParameters) toESTree(node.typeParameters);
         setProp(node, "typeArguments", node.typeParameters);
+        break;
+      case "JSXClosingElement":
+        toESTree(node.name);
+        break;
+      case "JSXText":
+        setProp(node, "raw", node.value);
         break;
       case "MetaProperty":
         toESTree(node.meta);

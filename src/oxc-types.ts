@@ -479,7 +479,7 @@ export interface TSIndexSignature extends Span {
   readonly: boolean;
 }
 export interface TSIndexSignatureName extends Span {
-  type: "TSIndexSignatureName";
+  type: "Identifier";
   name: string;
   typeAnnotation: TSTypeAnnotation;
 }

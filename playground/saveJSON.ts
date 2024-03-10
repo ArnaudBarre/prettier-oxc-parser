@@ -1,11 +1,18 @@
 import { writeFileSync } from "node:fs";
 
-export const saveJson = (name: string, ast: any) => {
+export const saveJson = (
+  name: string,
+  ast: any,
+  replacer?: (key: string, value: any) => any,
+) => {
   writeFileSync(
     `tmp/${name}.json`,
     JSON.stringify(
       ast,
-      (_, v) => (typeof v === "bigint" ? `(BigInt) ${v}` : v),
+      (k, v) => {
+        if (typeof v === "bigint") return `(BigInt) ${v}`;
+        return replacer ? replacer(k, v) : v;
+      },
       2,
     ),
   );
