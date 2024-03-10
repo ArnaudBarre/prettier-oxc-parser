@@ -50,7 +50,7 @@ export const compareAst = (oxc: ReturnType<typeof oxcParse>) => {
       .sort();
     for (const k of tsKeys) {
       let c2 = `${c}.${k}`;
-      if (!oxc[k] && !ts[k]) continue; // for now don't report diff in undefined/null/false
+      if (isEmpty(oxc[k]) && isEmpty(ts[k])) continue; // for now don't report diff in undefined/null/false/[]
       check(typeof oxc[k], typeof ts[k], c2);
       if (typeof oxc[k] === "object") {
         if (oxc[k] === null) {
@@ -72,3 +72,5 @@ export const compareAst = (oxc: ReturnType<typeof oxcParse>) => {
     compareNodes(oxc.body[i], ts.body[i], `body[${i}]`);
   }
 };
+
+const isEmpty = (v: any) => !v || (Array.isArray(v) && v.length === 0);

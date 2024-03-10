@@ -51,3 +51,4 @@
 - UsingDeclaration
 - ArrayAssignmentTarget/ObjectAssignmentTarget
 - PrivateInExpression
+- AssignmentTargetPropertyIdentifier

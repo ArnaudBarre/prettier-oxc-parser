@@ -1,6 +1,6 @@
 import type { Plugin } from "prettier";
 import typescriptParser from "prettier/plugins/typescript";
-import { writeFileSync } from "node:fs";
+import { saveJson } from "./saveJSON";
 
 export const defaultPlugin: Plugin = {
   parsers: {
@@ -9,7 +9,7 @@ export const defaultPlugin: Plugin = {
       parse: (text, options) => {
         const ast = typescriptParser.parsers.typescript.parse(text, options);
         delete ast.tokens;
-        writeFileSync("tmp/default-ast.json", JSON.stringify(ast, null, 2));
+        saveJson("default-ast", ast);
         return ast;
       },
     },

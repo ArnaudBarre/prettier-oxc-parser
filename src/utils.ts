@@ -3,6 +3,7 @@ import type {
   BindingPattern,
   ExpressionStatement,
   FormalParameter,
+  FormalParameterRest,
   FormalParameters,
   Node,
   Program,
@@ -65,7 +66,22 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
     if (hasUTF16) updateSpan(node);
     switch (node.type) {
       case "Program":
-      // TODO: Program.hashbang?
+        // TODO: hashbang?
+        for (const stmt of node.body) toESTree(stmt);
+        if (node.directives.length) {
+          // Could also update node.directives
+          node.body.unshift(
+            ...node.directives.map((d) => ({
+              type: "ExpressionStatement" as const,
+              start: d.start,
+              end: d.end,
+              directive: d.directive,
+              expression: toESTree(d.expression),
+            })),
+          );
+          deleteProp(node, "directives");
+        }
+        break;
       case "BlockStatement":
       case "StaticBlock":
         for (const stmt of node.body) toESTree(stmt);
@@ -248,6 +264,12 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "NumericLiteral":
         setProp(node, "extra", { rawValue: node.value, raw: `${node.raw}` });
         break;
+      case "BigIntLiteral":
+        setProp(node, "extra", {
+          rawValue: BigInt(node.raw.slice(0, -1)),
+          raw: node.raw,
+        });
+        break;
       case "RegExpLiteral":
         setProp(node, "type", "Literal");
         setProp(node, "value", {});
@@ -334,20 +356,19 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
           }
         }
         break;
+      case "AssignmentPattern":
+        handleBindingPattern(node.left);
+        toESTree(node.right);
+        break;
       case "ArrayPattern":
         for (let i = 0; i < node.elements.length; i++) {
           const el = node.elements[i];
-          if (el) handleBindingPattern(el);
-        }
-        if (node.rest) {
-          node.elements.push({
-            // @ts-expect-error
-            type: "RestElement",
-            start: node.rest.start,
-            end: node.rest.end,
-            argument: handleBindingPattern(node.rest.argument),
-          });
-          deleteProp(node, "rest");
+          if (!el) continue;
+          if (el.type === "RestElement") {
+            toESTree(el);
+          } else {
+            handleBindingPattern(el);
+          }
         }
         break;
       case "ArrayAssignmentTarget":
@@ -356,49 +377,45 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
           const el = node.elements[i];
           if (el) node.elements[i] = toESTree(el);
         }
-        if (node.rest) {
-          node.elements.push({
-            // @ts-expect-error
-            type: "RestElement",
-            start: node.rest.start,
-            end: node.rest.end,
-            argument: toESTree(node.rest.target),
-          });
-          deleteProp(node, "rest");
-        }
         break;
       case "ObjectPattern":
         for (const prop of node.properties) toESTree(prop);
-        if (node.rest) {
-          node.properties.push({
-            // @ts-expect-error
-            type: "RestElement",
-            start: node.rest.start,
-            end: node.rest.end,
-            argument: handleBindingPattern(node.rest.argument),
-          });
-          deleteProp(node, "rest");
-        }
         break;
       case "ObjectAssignmentTarget":
         setProp(node, "type", "ObjectPattern");
         for (const prop of node.properties) toESTree(prop);
-        if (node.rest) {
-          node.properties.push({
-            // @ts-expect-error
-            type: "RestElement",
-            start: node.rest.start,
-            end: node.rest.end,
-            argument: toESTree(node.rest.target),
+        break;
+      case "AssignmentTargetPropertyIdentifier":
+        setProp(node, "type", "Property");
+        setProp(node, "key", toESTree(node.binding));
+        setProp(node, "kind", "init");
+        setProp(node, "shorthand", true);
+        if (node.init) {
+          setProp(node, "value", {
+            type: "AssignmentPattern",
+            start: node.binding.start,
+            end: node.init.end,
+            left: node.binding,
+            right: toESTree(node.init),
           });
-          deleteProp(node, "rest");
+        } else {
+          setProp(node, "value", node.binding);
         }
+        deleteProp(node, "init");
+        deleteProp(node, "binding");
         break;
       case "BindingProperty":
         setProp(node, "type", "Property");
         toESTree(node.key);
         handleBindingPattern(node.value);
         setProp(node, "kind", "init");
+        break;
+      case "RestElement":
+        toESTree(node.argument);
+        if ("typeAnnotation" in node && node.typeAnnotation) {
+          toESTree(node.typeAnnotation);
+          node.argument.end = node.typeAnnotation.start;
+        }
         break;
       case "CatchClause":
         if (node.param) handleBindingPattern(node.param);
@@ -443,7 +460,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         setProp(
           node,
           "declare",
-          node.modifiers?.some((m) => m.kind === "declare"),
+          node.modifiers?.some((m) => m.kind === "declare") ?? false,
         );
         deleteProp(node, "modifiers");
         break;
@@ -498,6 +515,15 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         break;
       case "TSUnionType":
       case "TSIntersectionType":
+        // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L117-L121
+        if (node.types.length === 1) {
+          const newNode = toESTree(node.types[0]);
+          deleteProp(node, "types");
+          for (const key in newNode) {
+            setProp(node, key, newNode[key]);
+          }
+          return newNode;
+        }
         for (const type of node.types) toESTree(type);
         break;
       case "TSPropertySignature":
@@ -706,23 +732,13 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
     for (const item of node.items) {
       items.push(inlineFormalParameter(item));
     }
-    if (node.rest) {
-      const typeAnnotation = node.rest.argument.typeAnnotation;
-      if (typeAnnotation) toESTree(typeAnnotation);
-      updateSpan(node.rest);
-      items.push({
-        type: "RestElement",
-        start: node.rest.start,
-        end: node.rest.end,
-        argument: handleBindingPattern(node.rest.argument),
-        typeAnnotation,
-        optional: node.rest.argument.optional,
-      });
-    }
     return items;
   };
 
-  const inlineFormalParameter = (node: FormalParameter) => {
+  const inlineFormalParameter = (
+    node: FormalParameter | FormalParameterRest,
+  ) => {
+    if (node.type === "RestElement") return toESTree(node);
     // https://github.com/typescript-eslint/typescript-eslint/blob/6954a4a463f9a2a1c20e41c91ee2c75c953dcc9f/packages/typescript-estree/src/convert.ts#L1738-L1748
     if (node.accessibility || node.readonly || node.override) {
       updateSpan(node);
@@ -743,7 +759,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
   const handleBindingPattern = (node: BindingPattern) => {
     if (node.typeAnnotation) {
       toESTree(node.typeAnnotation);
-      node.end = node.typeAnnotation.end;
     }
     return toESTree(node);
   };

@@ -73,7 +73,7 @@ export type Expression =
   | BooleanLiteral
   | NullLiteral
   | NumericLiteral
-  | BigintLiteral
+  | BigIntLiteral
   | RegExpLiteral
   | StringLiteral
   | TemplateLiteral
@@ -121,8 +121,8 @@ export interface NumericLiteral extends Span {
   value: number;
   raw: string;
 }
-export interface BigintLiteral extends Span {
-  type: "BigintLiteral";
+export interface BigIntLiteral extends Span {
+  type: "BigIntLiteral";
   raw: string;
 }
 export interface RegExpLiteral extends Span {
@@ -190,8 +190,7 @@ export interface ArrowFunctionExpression extends Span {
 export interface FormalParameters extends Span {
   type: "FormalParameters";
   kind: "FormalParameter" | "UniqueFormalParameters" | "ArrowFormalParameters" | "Signature";
-  items: FormalParameter[];
-  rest: BindingRestElement | null;
+  items: Array<FormalParameter | FormalParameterRest>;
 }
 export interface FormalParameter extends Span {
   type: "FormalParameter";
@@ -213,8 +212,7 @@ export interface BindingIdentifier extends Span {
 }
 export interface ObjectPattern extends Span {
   type: "ObjectPattern";
-  properties: BindingProperty[];
-  rest: BindingRestElement | null;
+  properties: Array<BindingProperty | BindingRestElement>;
 }
 export interface BindingProperty extends Span {
   type: "BindingProperty";
@@ -229,13 +227,12 @@ export interface PrivateIdentifier extends Span {
   name: string;
 }
 export interface BindingRestElement extends Span {
-  type: "BindingRestElement";
+  type: "RestElement";
   argument: BindingPattern;
 }
 export interface ArrayPattern extends Span {
   type: "ArrayPattern";
-  elements: (BindingPattern | null)[];
-  rest: BindingRestElement | null;
+  elements: Array<BindingPattern | BindingRestElement | null>;
 }
 export interface AssignmentPattern extends Span {
   type: "AssignmentPattern";
@@ -246,23 +243,16 @@ export interface Decorator extends Span {
   type: "Decorator";
   expression: Expression;
 }
-export interface FunctionBody extends Span {
-  type: "FunctionBody";
-  directives: Directive[];
-  statements: Statement[];
+export interface FormalParameterRest extends Span {
+  type: "RestElement";
+  argument: BindingPatternKind;
+  typeAnnotation?: TSTypeAnnotation;
+  optional: boolean;
 }
-export interface TSTypeParameterDeclaration extends Span {
-  type: "TSTypeParameterDeclaration";
-  params: TSTypeParameter[];
-}
-export interface TSTypeParameter extends Span {
-  type: "TSTypeParameter";
-  name: BindingIdentifier;
-  constraint: TSType | null;
-  default: TSType | null;
-  in: boolean;
-  out: boolean;
-  const: boolean;
+export type BindingPatternKind = BindingIdentifier | ObjectPattern | ArrayPattern | AssignmentPattern;
+export interface TSTypeAnnotation extends Span {
+  type: "TSTypeAnnotation";
+  typeAnnotation: TSType;
 }
 export type TSType =
   | TSAnyKeyword
@@ -288,6 +278,7 @@ export type TSType =
   | TSIntersectionType
   | TSLiteralType
   | TSMappedType
+  | TSNamedTupleMember
   | TSQualifiedName
   | TSTemplateLiteralType
   | TSTupleType
@@ -356,9 +347,18 @@ export interface TSConstructorType extends Span {
   returnType: TSTypeAnnotation;
   typeParameters: TSTypeParameterDeclaration | null;
 }
-export interface TSTypeAnnotation extends Span {
-  type: "TSTypeAnnotation";
-  typeAnnotation: TSType;
+export interface TSTypeParameterDeclaration extends Span {
+  type: "TSTypeParameterDeclaration";
+  params: TSTypeParameter[];
+}
+export interface TSTypeParameter extends Span {
+  type: "TSTypeParameter";
+  name: BindingIdentifier;
+  constraint: TSType | null;
+  default: TSType | null;
+  in: boolean;
+  out: boolean;
+  const: boolean;
 }
 export interface TSFunctionType extends Span {
   type: "TSFunctionType";
@@ -420,7 +420,7 @@ export type TSLiteral =
   | BooleanLiteral
   | NullLiteral
   | NumericLiteral
-  | BigintLiteral
+  | BigIntLiteral
   | RegExpLiteral
   | StringLiteral
   | TemplateLiteral
@@ -437,6 +437,12 @@ export interface TSMappedType extends Span {
   typeAnnotation: TSType | null;
   optional: "true" | "+" | "-" | "none";
   readonly: "true" | "+" | "-" | "none";
+}
+export interface TSNamedTupleMember extends Span {
+  type: "TSNamedTupleMember";
+  elementType: TSType;
+  label: IdentifierName;
+  optional: boolean;
 }
 export interface TSTemplateLiteralType extends Span {
   type: "TSTemplateLiteralType";
@@ -455,12 +461,6 @@ export interface TSOptionalType extends Span {
 export interface TSRestType extends Span {
   type: "TSRestType";
   typeAnnotation: TSType;
-}
-export interface TSNamedTupleMember extends Span {
-  type: "TSNamedTupleMember";
-  elementType: TSType;
-  label: IdentifierName;
-  optional: boolean;
 }
 export interface TSTypeLiteral extends Span {
   type: "TSTypeLiteral";
@@ -550,6 +550,11 @@ export interface JSDocNullableType extends Span {
 export interface JSDocUnknownType extends Span {
   type: "JSDocUnknownType";
 }
+export interface FunctionBody extends Span {
+  type: "FunctionBody";
+  directives: Directive[];
+  statements: Statement[];
+}
 export interface AssignmentExpression extends Span {
   type: "AssignmentExpression";
   operator:
@@ -621,18 +626,22 @@ export interface TSTypeAssertion extends Span {
 export type AssignmentTargetPattern = ArrayAssignmentTarget | ObjectAssignmentTarget;
 export interface ArrayAssignmentTarget extends Span {
   type: "ArrayAssignmentTarget";
-  elements: (AssignmentTargetMaybeDefault | null)[];
-  rest: AssignmentTargetRest | null;
-  trailingComma: Span | null;
+  elements: Array<AssignmentTargetMaybeDefault | AssignmentTargetRest | null>;
+  trailing_comma: Span | null;
+}
+export type AssignmentTargetMaybeDefault = AssignmentTarget | AssignmentTargetWithDefault;
+export interface AssignmentTargetWithDefault extends Span {
+  type: "AssignmentTargetWithDefault";
+  binding: AssignmentTarget;
+  init: Expression;
 }
 export interface AssignmentTargetRest extends Span {
-  type: "AssignmentTargetRest";
-  target: AssignmentTarget;
+  type: "RestElement";
+  argument: AssignmentTarget;
 }
 export interface ObjectAssignmentTarget extends Span {
   type: "ObjectAssignmentTarget";
-  properties: AssignmentTargetProperty[];
-  rest: AssignmentTargetRest | null;
+  properties: Array<AssignmentTargetProperty | AssignmentTargetRest>;
 }
 export type AssignmentTargetProperty = AssignmentTargetPropertyIdentifier | AssignmentTargetPropertyProperty;
 export interface AssignmentTargetPropertyIdentifier extends Span {
@@ -644,12 +653,6 @@ export interface AssignmentTargetPropertyProperty extends Span {
   type: "AssignmentTargetPropertyProperty";
   name: PropertyKey;
   binding: AssignmentTargetMaybeDefault;
-}
-export type AssignmentTargetMaybeDefault = AssignmentTarget | AssignmentTargetWithDefault;
-export interface AssignmentTargetWithDefault extends Span {
-  type: "AssignmentTargetWithDefault";
-  binding: AssignmentTarget;
-  init: Expression;
 }
 export interface AwaitExpression extends Span {
   type: "AwaitExpression";
@@ -1142,6 +1145,7 @@ export interface ExportNamedDeclaration extends Span {
   specifiers: ExportSpecifier[];
   source: StringLiteral | null;
   exportKind: "value" | "type";
+  withClause: WithClause | null;
 }
 export type Declaration =
   | VariableDeclaration
@@ -1177,7 +1181,6 @@ export interface TSImportEqualsDeclaration extends Span {
   type: "TSImportEqualsDeclaration";
   id: BindingIdentifier;
   moduleReference: TSModuleReference;
-  isExport: boolean;
   importKind: "value" | "type";
 }
 export type TSModuleReference = TSTypeName | TSExternalModuleReference;
@@ -1213,7 +1216,7 @@ export type Node =
   | BooleanLiteral
   | NullLiteral
   | NumericLiteral
-  | BigintLiteral
+  | BigIntLiteral
   | RegExpLiteral
   | TemplateLiteral
   | TemplateElement
@@ -1224,19 +1227,17 @@ export type Node =
   | ArrayExpression
   | SpreadElement
   | ArrowFunctionExpression
-  | FormalParameters
   | FormalParameter
   | BindingIdentifier
-  | ObjectPattern
   | BindingProperty
   | PrivateIdentifier
   | BindingRestElement
+  | ObjectPattern
   | ArrayPattern
   | AssignmentPattern
   | Decorator
-  | FunctionBody
-  | TSTypeParameterDeclaration
-  | TSTypeParameter
+  | FormalParameterRest
+  | TSTypeAnnotation
   | TSAnyKeyword
   | TSBigIntKeyword
   | TSBooleanKeyword
@@ -1253,7 +1254,8 @@ export type Node =
   | TSArrayType
   | TSConditionalType
   | TSConstructorType
-  | TSTypeAnnotation
+  | TSTypeParameterDeclaration
+  | TSTypeParameter
   | TSFunctionType
   | TSThisParameter
   | TSImportType
@@ -1267,11 +1269,11 @@ export type Node =
   | TSLiteralType
   | UnaryExpression
   | TSMappedType
+  | TSNamedTupleMember
   | TSTemplateLiteralType
   | TSTupleType
   | TSOptionalType
   | TSRestType
-  | TSNamedTupleMember
   | TSTypeLiteral
   | TSIndexSignature
   | TSIndexSignatureName
@@ -1286,6 +1288,8 @@ export type Node =
   | TSUnionType
   | JSDocNullableType
   | JSDocUnknownType
+  | FormalParameters
+  | FunctionBody
   | AssignmentExpression
   | ComputedMemberExpression
   | StaticMemberExpression
@@ -1294,12 +1298,12 @@ export type Node =
   | TSSatisfiesExpression
   | TSNonNullExpression
   | TSTypeAssertion
-  | ArrayAssignmentTarget
+  | AssignmentTargetWithDefault
   | AssignmentTargetRest
-  | ObjectAssignmentTarget
+  | ArrayAssignmentTarget
   | AssignmentTargetPropertyIdentifier
   | AssignmentTargetPropertyProperty
-  | AssignmentTargetWithDefault
+  | ObjectAssignmentTarget
   | AwaitExpression
   | BinaryExpression
   | CallExpression

@@ -5,6 +5,7 @@ import * as plugin from "../src/index";
 import { oxcParse } from "../src/utils";
 import { compareAst } from "./compare-ast";
 import { defaultPlugin } from "./defaultPlugin";
+import { saveJson } from "./saveJSON";
 
 export const compareCode = async (
   code: string,
@@ -12,7 +13,7 @@ export const compareCode = async (
   forceCompareAst?: boolean,
 ) => {
   const ast = oxcParse(code, filename, true);
-  writeFileSync("tmp/ast-updated.json", JSON.stringify(ast, null, 2));
+  saveJson("ast-updated", ast);
 
   const withoutPlugin = await format(code, {
     filepath: filename,

@@ -66,6 +66,7 @@ const visitNode = (name: string): B.TSType | null => {
     if (!int) throw new Error(`Could not find interface ${name}`);
     exports.push(int.exp);
     visited.set(name, null);
+    let hasType = false;
     for (const sig of int.decl.body.body) {
       if (sig.type !== "TSPropertySignature") {
         throw new Error(`Unexpected signature type ${sig.type}`);
@@ -80,9 +81,28 @@ const visitNode = (name: string): B.TSType | null => {
       }
       if (sig.key.type === "Identifier" && sig.key.name === "type") {
         nodes.push(name);
+        hasType = true;
       }
       switch (sig.typeAnnotation.typeAnnotation.type) {
         case "TSTypeReference":
+          if (
+            sig.typeAnnotation.typeAnnotation.typeName.type === "Identifier" &&
+            sig.typeAnnotation.typeAnnotation.typeName.name === "Array"
+          ) {
+            const params =
+              sig.typeAnnotation.typeAnnotation.typeParameters?.params;
+            assert(params?.length === 1);
+            switch (params[0].type) {
+              case "TSTypeReference":
+                const inlineType = handleReference(params[0]);
+                if (inlineType) params[0] = inlineType;
+                break;
+              case "TSUnionType":
+                handleUnionType(params[0]);
+                break;
+            }
+            break;
+          }
           const inlineType = handleReference(sig.typeAnnotation.typeAnnotation);
           if (inlineType) {
             sig.typeAnnotation.typeAnnotation = inlineType;
@@ -95,6 +115,40 @@ const visitNode = (name: string): B.TSType | null => {
         case "TSArrayType":
           handleArrayType(sig.typeAnnotation.typeAnnotation);
           break;
+      }
+    }
+    if (
+      !hasType &&
+      int.decl.extends?.some(
+        (e) =>
+          e.type === "TSExpressionWithTypeArguments" &&
+          e.expression.type === "Identifier" &&
+          e.expression.name === "Span",
+      )
+    ) {
+      const knowMissing = [
+        "ObjectPattern",
+        "ArrayPattern",
+        "FormalParameters",
+        "ArrayAssignmentTarget",
+        "ObjectAssignmentTarget",
+      ];
+      if (knowMissing.includes(name)) {
+        console.warn(`No type property in ${name}`);
+        int.decl.body.body.unshift({
+          type: "TSPropertySignature",
+          key: { type: "Identifier", name: "type" },
+          typeAnnotation: {
+            type: "TSTypeAnnotation",
+            typeAnnotation: {
+              type: "TSLiteralType",
+              literal: { type: "StringLiteral", value: name },
+            },
+          },
+        } as B.TSPropertySignature);
+        nodes.push(name);
+      } else {
+        throw new Error(`No type property in ${name}`);
       }
     }
   }
