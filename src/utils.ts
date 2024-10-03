@@ -578,7 +578,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         toESTree(node.typeParameter);
         if (node.nameType) toESTree(node.nameType);
         if (node.typeAnnotation) toESTree(node.typeAnnotation);
-        // TODO: check if correct (ex typescript/lib/lib.es2020.promise.d.ts)
         if (node.optional === "none") setProp(node, "optional", false);
         if (node.readonly === "none") setProp(node, "readonly", false);
         break;

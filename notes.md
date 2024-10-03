@@ -47,7 +47,6 @@
 - BindingPattern
 - Rest arguments/properties
 - TSThisParameter
-- TSIndexSignatureName
 - UsingDeclaration
 - ArrayAssignmentTarget/ObjectAssignmentTarget
 - PrivateInExpression

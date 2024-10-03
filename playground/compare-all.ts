@@ -4,7 +4,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { compareCode } from "./compare-code";
 import { saveJson } from "./saveJSON";
 
-const glob = new Glob(process.argv[2] ?? "**/*.tsx");
+const glob = new Glob(process.argv[2] ?? "**/*.{js,jsx,ts,tsx}");
 
 const currentState = existsSync("tmp/files.json")
   ? JSON.parse(readFileSync("tmp/files.json", "utf-8"))
@@ -13,6 +13,13 @@ const currentState = existsSync("tmp/files.json")
 const nodeModules = new Set<string>(currentState.nodeModules);
 const otherFiles = new Set<string>(currentState.otherFiles);
 const initialCount = nodeModules.size + otherFiles.size;
+
+const save = () => {
+  saveJson("files", {
+    nodeModules: [...nodeModules],
+    otherFiles: [...otherFiles],
+  });
+}
 
 const folder = "../carbon-calculator";
 let count = 0;
@@ -25,7 +32,15 @@ for await (const file of glob.scan(folder)) {
   }
   console.log(file);
   const code = readFileSync(`${folder}/${file}`, "utf-8");
-  const eq = await compareCode(code, file, process.argv[2] !== undefined);
+  let eq = false;
+  let hasParsingError = false;
+  try {
+    eq = await compareCode(code, file, process.argv[2] !== undefined);
+  } catch (e) {
+    console.log(e);
+    hasParsingError = true;
+  }
+  if (hasParsingError) continue;
   if (eq) {
     count++;
     if (nodeModulePath) {
@@ -34,12 +49,10 @@ for await (const file of glob.scan(folder)) {
       otherFiles.delete(file);
     }
   } else {
-    saveJson("files", {
-      nodeModules: [...nodeModules],
-      otherFiles: [...otherFiles],
-    });
+    save();
     process.exit(1);
   }
 }
 
+save();
 console.log(`Checked ${initialCount + count} files (${count} new)`);
