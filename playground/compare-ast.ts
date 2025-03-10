@@ -1,6 +1,6 @@
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
-import type { oxcParse } from "../src/utils.ts";
+import type { oxcParse } from "../src/utils-v2.ts";
 
 export const compareAst = (oxc: ReturnType<typeof oxcParse>) => {
   const ts = JSON.parse(readFileSync("tmp/default-ast.json", "utf-8"));
@@ -34,7 +34,7 @@ export const compareAst = (oxc: ReturnType<typeof oxcParse>) => {
     check(oxc.type, ts.type, c);
     c += `(${oxc.type})`;
     if (oxc.type && oxc.type !== "TemplateElement") {
-      // TemplateElement span in TS are contains `${}` chars
+      // TemplateElement span in TS contains `${}` chars
       check(oxc.start, ts.start, `${c}.start`);
       check(oxc.end, ts.end, `${c}.end`);
     }
@@ -45,6 +45,10 @@ export const compareAst = (oxc: ReturnType<typeof oxcParse>) => {
     for (const k of tsKeys) {
       let c2 = `${c}.${k}`;
       if (isEmpty(oxc[k]) && isEmpty(ts[k])) continue; // for now don't report diff in undefined/null/false/[]
+      if (typeof oxc[k] === "bigint") {
+        check(`(BigInt) ${oxc[k]}`, ts[k], c2);
+        continue;
+      }
       check(typeof oxc[k], typeof ts[k], c2);
       if (typeof oxc[k] === "object") {
         if (oxc[k] === null) {
@@ -53,7 +57,11 @@ export const compareAst = (oxc: ReturnType<typeof oxcParse>) => {
           check("array", Array.isArray(ts[k]) ? "array" : "not array", c2);
           check(oxc[k].length, ts[k].length, c2);
           for (let i = 0; i < oxc[k].length; i++) {
-            compareNodes(oxc[k][i], ts[k][i], `${c2}[${i}]`);
+            if (oxc[k][i] === null || ts[k][i] === null) {
+              check(oxc[k][i], ts[k][i], `${c2}[${i}]`);
+            } else {
+              compareNodes(oxc[k][i], ts[k][i], `${c2}[${i}]`);
+            }
           }
         } else {
           compareNodes(oxc[k], ts[k], c2);

@@ -1,28 +1,18 @@
 export interface Program extends Span {
   type: "Program";
-  sourceType: SourceType;
-  directives: Directive[];
+  body: Array<Directive | Statement>;
+  sourceType: "script" | "module" | "unambiguous";
   hashbang: Hashbang | null;
-  body: Statement[];
-}
-export interface SourceType {
-  language: "javaScript" | { typeScript: { isDefinitionFile: boolean } };
-  moduleKind: "script" | "module";
-  variant: "standard" | "jsx";
-  alwaysStrict: boolean;
 }
 export interface Directive extends Span {
-  type: "Directive";
+  type: "ExpressionStatement";
   expression: StringLiteral;
   directive: string;
 }
 export interface StringLiteral extends Span {
-  type: "StringLiteral";
+  type: "Literal";
   value: string;
-}
-export interface Hashbang extends Span {
-  type: "Hashbang";
-  value: string;
+  raw: string | null;
 }
 export type Statement =
   | BlockStatement
@@ -43,11 +33,11 @@ export type Statement =
   | TryStatement
   | WhileStatement
   | WithStatement
-  | ModuleDeclaration
-  | Declaration;
+  | Declaration
+  | ModuleDeclaration;
 export interface BlockStatement extends Span {
   type: "BlockStatement";
-  body: Statement[];
+  body: Array<Statement>;
 }
 export interface BreakStatement extends Span {
   type: "BreakStatement";
@@ -92,7 +82,6 @@ export type Expression =
   | Function
   | ImportExpression
   | LogicalExpression
-  | MemberExpression
   | NewExpression
   | ObjectExpression
   | SequenceExpression
@@ -108,41 +97,49 @@ export type Expression =
   | TSSatisfiesExpression
   | TSTypeAssertion
   | TSNonNullExpression
-  | TSInstantiationExpression;
+  | TSInstantiationExpression
+  | V8IntrinsicExpression
+  | MemberExpression;
 export interface BooleanLiteral extends Span {
-  type: "BooleanLiteral";
+  type: "Literal";
   value: boolean;
+  raw: string | null;
 }
 export interface NullLiteral extends Span {
-  type: "NullLiteral";
+  type: "Literal";
+  value: null;
+  raw: "null" | null;
 }
 export interface NumericLiteral extends Span {
-  type: "NumericLiteral";
+  type: "Literal";
   value: number;
-  raw: string;
+  raw: string | null;
 }
 export interface BigIntLiteral extends Span {
-  type: "BigIntLiteral";
-  raw: string;
+  type: "Literal";
+  value: bigint;
+  raw: string | null;
+  bigint: string;
 }
 export interface RegExpLiteral extends Span {
-  type: "RegExpLiteral";
-  value: null;
+  type: "Literal";
+  value: RegExp | null;
+  raw: string | null;
   regex: RegExp;
 }
 export interface RegExp {
   pattern: string;
-  flags: { G: 1; I: 2; M: 4; S: 8; U: 16; Y: 32; D: 64; V: 128 };
+  flags: string;
 }
 export interface TemplateLiteral extends Span {
   type: "TemplateLiteral";
-  quasis: TemplateElement[];
-  expressions: Expression[];
+  expressions: Array<Expression>;
+  quasis: Array<TemplateElement>;
 }
 export interface TemplateElement extends Span {
   type: "TemplateElement";
-  tail: boolean;
   value: TemplateElementValue;
+  tail: boolean;
 }
 export interface TemplateElementValue {
   raw: string;
@@ -166,39 +163,29 @@ export interface Super extends Span {
 }
 export interface ArrayExpression extends Span {
   type: "ArrayExpression";
-  elements: ArrayExpressionElement[];
-  trailingComma: Span | null;
-}
-export type ArrayExpressionElement = SpreadElement | Expression | Span;
-export interface SpreadElement extends Span {
-  type: "SpreadElement";
-  argument: Expression;
-}
-export interface Span {
-  start: number;
-  end: number;
+  elements: Array<SpreadElement | null | Expression>;
 }
 export interface ArrowFunctionExpression extends Span {
   type: "ArrowFunctionExpression";
+  id: null;
   expression: boolean;
+  generator: false;
   async: boolean;
-  params: FormalParameters;
-  body: FunctionBody;
+  params: ParamPattern[];
+  body: FunctionBody | Expression;
   typeParameters: TSTypeParameterDeclaration | null;
   returnType: TSTypeAnnotation | null;
 }
-export interface FormalParameters extends Span {
-  type: "FormalParameters";
-  kind: "FormalParameter" | "UniqueFormalParameters" | "ArrowFormalParameters" | "Signature";
-  items: Array<FormalParameter | FormalParameterRest>;
-}
-export interface FormalParameter extends Span {
-  type: "FormalParameter";
-  pattern: BindingPattern;
-  accessibility: ("private" | "protected" | "public") | null;
+export type ParamPattern = FormalParameter | FormalParameterRest;
+export type FormalParameter = {
+  decorators: Array<Decorator>;
+  accessibility: "private" | "protected" | "public" | null;
   readonly: boolean;
   override: boolean;
-  decorators: Decorator[];
+} & BindingPattern;
+export interface Decorator extends Span {
+  type: "Decorator";
+  expression: Expression;
 }
 export type BindingPattern = { typeAnnotation: TSTypeAnnotation | null; optional: boolean } & (
   | BindingIdentifier
@@ -206,50 +193,6 @@ export type BindingPattern = { typeAnnotation: TSTypeAnnotation | null; optional
   | ArrayPattern
   | AssignmentPattern
 );
-export interface BindingIdentifier extends Span {
-  type: "Identifier";
-  name: string;
-}
-export interface ObjectPattern extends Span {
-  type: "ObjectPattern";
-  properties: Array<BindingProperty | BindingRestElement>;
-}
-export interface BindingProperty extends Span {
-  type: "BindingProperty";
-  key: PropertyKey;
-  value: BindingPattern;
-  shorthand: boolean;
-  computed: boolean;
-}
-export type PropertyKey = IdentifierName | PrivateIdentifier | Expression;
-export interface PrivateIdentifier extends Span {
-  type: "PrivateIdentifier";
-  name: string;
-}
-export interface BindingRestElement extends Span {
-  type: "RestElement";
-  argument: BindingPattern;
-}
-export interface ArrayPattern extends Span {
-  type: "ArrayPattern";
-  elements: Array<BindingPattern | BindingRestElement | null>;
-}
-export interface AssignmentPattern extends Span {
-  type: "AssignmentPattern";
-  left: BindingPattern;
-  right: Expression;
-}
-export interface Decorator extends Span {
-  type: "Decorator";
-  expression: Expression;
-}
-export interface FormalParameterRest extends Span {
-  type: "RestElement";
-  argument: BindingPatternKind;
-  typeAnnotation?: TSTypeAnnotation;
-  optional: boolean;
-}
-export type BindingPatternKind = BindingIdentifier | ObjectPattern | ArrayPattern | AssignmentPattern;
 export interface TSTypeAnnotation extends Span {
   type: "TSTypeAnnotation";
   typeAnnotation: TSType;
@@ -258,13 +201,13 @@ export type TSType =
   | TSAnyKeyword
   | TSBigIntKeyword
   | TSBooleanKeyword
+  | TSIntrinsicKeyword
   | TSNeverKeyword
   | TSNullKeyword
   | TSNumberKeyword
   | TSObjectKeyword
   | TSStringKeyword
   | TSSymbolKeyword
-  | TSThisType
   | TSUndefinedKeyword
   | TSUnknownKeyword
   | TSVoidKeyword
@@ -279,8 +222,8 @@ export type TSType =
   | TSLiteralType
   | TSMappedType
   | TSNamedTupleMember
-  | TSQualifiedName
   | TSTemplateLiteralType
+  | TSThisType
   | TSTupleType
   | TSTypeLiteral
   | TSTypeOperator
@@ -288,7 +231,9 @@ export type TSType =
   | TSTypeQuery
   | TSTypeReference
   | TSUnionType
+  | TSParenthesizedType
   | JSDocNullableType
+  | JSDocNonNullableType
   | JSDocUnknownType;
 export interface TSAnyKeyword extends Span {
   type: "TSAnyKeyword";
@@ -298,6 +243,9 @@ export interface TSBigIntKeyword extends Span {
 }
 export interface TSBooleanKeyword extends Span {
   type: "TSBooleanKeyword";
+}
+export interface TSIntrinsicKeyword extends Span {
+  type: "TSIntrinsicKeyword";
 }
 export interface TSNeverKeyword extends Span {
   type: "TSNeverKeyword";
@@ -316,9 +264,6 @@ export interface TSStringKeyword extends Span {
 }
 export interface TSSymbolKeyword extends Span {
   type: "TSSymbolKeyword";
-}
-export interface TSThisType extends Span {
-  type: "TSThisType";
 }
 export interface TSUndefinedKeyword extends Span {
   type: "TSUndefinedKeyword";
@@ -343,13 +288,13 @@ export interface TSConditionalType extends Span {
 export interface TSConstructorType extends Span {
   type: "TSConstructorType";
   abstract: boolean;
-  params: FormalParameters;
-  returnType: TSTypeAnnotation;
   typeParameters: TSTypeParameterDeclaration | null;
+  params: ParamPattern[];
+  returnType: TSTypeAnnotation;
 }
 export interface TSTypeParameterDeclaration extends Span {
   type: "TSTypeParameterDeclaration";
-  params: TSTypeParameter[];
+  params: Array<TSTypeParameter>;
 }
 export interface TSTypeParameter extends Span {
   type: "TSTypeParameter";
@@ -360,21 +305,25 @@ export interface TSTypeParameter extends Span {
   out: boolean;
   const: boolean;
 }
+export interface BindingIdentifier extends Span {
+  type: "Identifier";
+  name: string;
+}
 export interface TSFunctionType extends Span {
   type: "TSFunctionType";
-  thisParam: TSThisParameter | null;
-  params: FormalParameters;
-  returnType: TSTypeAnnotation;
   typeParameters: TSTypeParameterDeclaration | null;
+  thisParam: TSThisParameter | null;
+  params: ParamPattern[];
+  returnType: TSTypeAnnotation;
 }
 export interface TSThisParameter extends Span {
   type: "TSThisParameter";
-  this: IdentifierName;
   typeAnnotation: TSTypeAnnotation | null;
 }
 export interface TSImportType extends Span {
   type: "TSImportType";
-  argument: TSType;
+  isTypeOf: boolean;
+  parameter: TSType;
   qualifier: TSTypeName | null;
   attributes: TSImportAttributes | null;
   typeParameters: TSTypeParameterInstantiation | null;
@@ -387,7 +336,8 @@ export interface TSQualifiedName extends Span {
 }
 export interface TSImportAttributes extends Span {
   type: "TSImportAttributes";
-  elements: TSImportAttribute[];
+  attributesKeyword: IdentifierName;
+  elements: Array<TSImportAttribute>;
 }
 export interface TSImportAttribute extends Span {
   type: "TSImportAttribute";
@@ -397,7 +347,7 @@ export interface TSImportAttribute extends Span {
 export type TSImportAttributeName = IdentifierName | StringLiteral;
 export interface TSTypeParameterInstantiation extends Span {
   type: "TSTypeParameterInstantiation";
-  params: TSType[];
+  params: Array<TSType>;
 }
 export interface TSIndexedAccessType extends Span {
   type: "TSIndexedAccessType";
@@ -410,7 +360,7 @@ export interface TSInferType extends Span {
 }
 export interface TSIntersectionType extends Span {
   type: "TSIntersectionType";
-  types: TSType[];
+  types: Array<TSType>;
 }
 export interface TSLiteralType extends Span {
   type: "TSLiteralType";
@@ -418,16 +368,15 @@ export interface TSLiteralType extends Span {
 }
 export type TSLiteral =
   | BooleanLiteral
-  | NullLiteral
   | NumericLiteral
   | BigIntLiteral
-  | RegExpLiteral
   | StringLiteral
   | TemplateLiteral
   | UnaryExpression;
 export interface UnaryExpression extends Span {
   type: "UnaryExpression";
-  operator: "-" | "+" | "!" | "~" | "typeof" | "void" | "delete";
+  operator: "+" | "-" | "!" | "~" | "typeof" | "void" | "delete";
+  prefix: true;
   argument: Expression;
 }
 export interface TSMappedType extends Span {
@@ -440,20 +389,11 @@ export interface TSMappedType extends Span {
 }
 export interface TSNamedTupleMember extends Span {
   type: "TSNamedTupleMember";
-  elementType: TSType;
+  elementType: TSTupleElement;
   label: IdentifierName;
   optional: boolean;
 }
-export interface TSTemplateLiteralType extends Span {
-  type: "TSTemplateLiteralType";
-  quasis: TemplateElement[];
-  types: TSType[];
-}
-export interface TSTupleType extends Span {
-  type: "TSTupleType";
-  elementTypes: TSTupleElement[];
-}
-export type TSTupleElement = TSType | TSOptionalType | TSRestType | TSNamedTupleMember;
+export type TSTupleElement = TSOptionalType | TSRestType | TSType;
 export interface TSOptionalType extends Span {
   type: "TSOptionalType";
   typeAnnotation: TSType;
@@ -462,9 +402,21 @@ export interface TSRestType extends Span {
   type: "TSRestType";
   typeAnnotation: TSType;
 }
+export interface TSTemplateLiteralType extends Span {
+  type: "TSTemplateLiteralType";
+  quasis: Array<TemplateElement>;
+  types: Array<TSType>;
+}
+export interface TSThisType extends Span {
+  type: "TSThisType";
+}
+export interface TSTupleType extends Span {
+  type: "TSTupleType";
+  elementTypes: Array<TSTupleElement>;
+}
 export interface TSTypeLiteral extends Span {
   type: "TSTypeLiteral";
-  members: TSSignature[];
+  members: Array<TSSignature>;
 }
 export type TSSignature =
   | TSIndexSignature
@@ -474,9 +426,10 @@ export type TSSignature =
   | TSMethodSignature;
 export interface TSIndexSignature extends Span {
   type: "TSIndexSignature";
-  parameters: TSIndexSignatureName[];
+  parameters: Array<TSIndexSignatureName>;
   typeAnnotation: TSTypeAnnotation;
   readonly: boolean;
+  static: boolean;
 }
 export interface TSIndexSignatureName extends Span {
   type: "Identifier";
@@ -491,18 +444,23 @@ export interface TSPropertySignature extends Span {
   key: PropertyKey;
   typeAnnotation: TSTypeAnnotation | null;
 }
+export type PropertyKey = IdentifierName | PrivateIdentifier | Expression;
+export interface PrivateIdentifier extends Span {
+  type: "PrivateIdentifier";
+  name: string;
+}
 export interface TSCallSignatureDeclaration extends Span {
   type: "TSCallSignatureDeclaration";
-  thisParam: TSThisParameter | null;
-  params: FormalParameters;
-  returnType: TSTypeAnnotation | null;
   typeParameters: TSTypeParameterDeclaration | null;
+  thisParam: TSThisParameter | null;
+  params: ParamPattern[];
+  returnType: TSTypeAnnotation | null;
 }
 export interface TSConstructSignatureDeclaration extends Span {
   type: "TSConstructSignatureDeclaration";
-  params: FormalParameters;
-  returnType: TSTypeAnnotation | null;
   typeParameters: TSTypeParameterDeclaration | null;
+  params: ParamPattern[];
+  returnType: TSTypeAnnotation | null;
 }
 export interface TSMethodSignature extends Span {
   type: "TSMethodSignature";
@@ -510,10 +468,10 @@ export interface TSMethodSignature extends Span {
   computed: boolean;
   optional: boolean;
   kind: "method" | "get" | "set";
-  thisParam: TSThisParameter | null;
-  params: FormalParameters;
-  returnType: TSTypeAnnotation | null;
   typeParameters: TSTypeParameterDeclaration | null;
+  thisParam: TSThisParameter | null;
+  params: ParamPattern[];
+  returnType: TSTypeAnnotation | null;
 }
 export interface TSTypeOperator extends Span {
   type: "TSTypeOperator";
@@ -532,7 +490,7 @@ export interface TSTypeQuery extends Span {
   exprName: TSTypeQueryExprName;
   typeParameters: TSTypeParameterInstantiation | null;
 }
-export type TSTypeQueryExprName = TSTypeName | TSImportType;
+export type TSTypeQueryExprName = TSImportType | TSTypeName;
 export interface TSTypeReference extends Span {
   type: "TSTypeReference";
   typeName: TSTypeName;
@@ -540,20 +498,61 @@ export interface TSTypeReference extends Span {
 }
 export interface TSUnionType extends Span {
   type: "TSUnionType";
-  types: TSType[];
+  types: Array<TSType>;
+}
+export interface TSParenthesizedType extends Span {
+  type: "TSParenthesizedType";
+  typeAnnotation: TSType;
 }
 export interface JSDocNullableType extends Span {
   type: "JSDocNullableType";
   typeAnnotation: TSType;
   postfix: boolean;
 }
+export interface JSDocNonNullableType extends Span {
+  type: "JSDocNonNullableType";
+  typeAnnotation: TSType;
+  postfix: boolean;
+}
 export interface JSDocUnknownType extends Span {
   type: "JSDocUnknownType";
 }
+export interface ObjectPattern extends Span {
+  type: "ObjectPattern";
+  properties: Array<BindingProperty | BindingRestElement>;
+}
+export interface BindingProperty extends Span {
+  type: "Property";
+  method: false;
+  shorthand: boolean;
+  computed: boolean;
+  key: PropertyKey;
+  value: BindingPattern;
+  kind: "init";
+}
+export interface BindingRestElement extends Span {
+  type: "RestElement";
+  argument: BindingPattern;
+}
+export interface ArrayPattern extends Span {
+  type: "ArrayPattern";
+  elements: Array<BindingPattern | BindingRestElement | null>;
+}
+export interface AssignmentPattern extends Span {
+  type: "AssignmentPattern";
+  left: BindingPattern;
+  right: Expression;
+}
+export interface FormalParameterRest extends Span {
+  type: "RestElement";
+  argument: BindingPatternKind;
+  typeAnnotation: TSTypeAnnotation | null;
+  optional: boolean;
+}
+export type BindingPatternKind = BindingIdentifier | ObjectPattern | ArrayPattern | AssignmentPattern;
 export interface FunctionBody extends Span {
-  type: "FunctionBody";
-  directives: Directive[];
-  statements: Statement[];
+  type: "BlockStatement";
+  body: Array<Directive | Statement>;
 }
 export interface AssignmentExpression extends Span {
   type: "AssignmentExpression";
@@ -564,46 +563,27 @@ export interface AssignmentExpression extends Span {
     | "*="
     | "/="
     | "%="
+    | "**="
     | "<<="
     | ">>="
     | ">>>="
     | "|="
     | "^="
     | "&="
-    | "&&="
     | "||="
-    | "??="
-    | "**=";
+    | "&&="
+    | "??=";
   left: AssignmentTarget;
   right: Expression;
 }
 export type AssignmentTarget = SimpleAssignmentTarget | AssignmentTargetPattern;
 export type SimpleAssignmentTarget =
   | IdentifierReference
-  | MemberExpression
   | TSAsExpression
   | TSSatisfiesExpression
   | TSNonNullExpression
-  | TSTypeAssertion;
-export type MemberExpression = ComputedMemberExpression | StaticMemberExpression | PrivateFieldExpression;
-export interface ComputedMemberExpression extends Span {
-  type: "ComputedMemberExpression";
-  object: Expression;
-  expression: Expression;
-  optional: boolean;
-}
-export interface StaticMemberExpression extends Span {
-  type: "StaticMemberExpression";
-  object: Expression;
-  property: IdentifierName;
-  optional: boolean;
-}
-export interface PrivateFieldExpression extends Span {
-  type: "PrivateFieldExpression";
-  object: Expression;
-  field: PrivateIdentifier;
-  optional: boolean;
-}
+  | TSTypeAssertion
+  | MemberExpression;
 export interface TSAsExpression extends Span {
   type: "TSAsExpression";
   expression: Expression;
@@ -623,36 +603,65 @@ export interface TSTypeAssertion extends Span {
   expression: Expression;
   typeAnnotation: TSType;
 }
+export type MemberExpression = ComputedMemberExpression | StaticMemberExpression | PrivateFieldExpression;
+export interface ComputedMemberExpression extends Span {
+  type: "MemberExpression";
+  object: Expression;
+  property: Expression;
+  computed: true;
+  optional: boolean;
+}
+export interface StaticMemberExpression extends Span {
+  type: "MemberExpression";
+  object: Expression;
+  property: IdentifierName;
+  computed: false;
+  optional: boolean;
+}
+export interface PrivateFieldExpression extends Span {
+  type: "MemberExpression";
+  object: Expression;
+  property: PrivateIdentifier;
+  computed: false;
+  optional: boolean;
+}
 export type AssignmentTargetPattern = ArrayAssignmentTarget | ObjectAssignmentTarget;
 export interface ArrayAssignmentTarget extends Span {
-  type: "ArrayAssignmentTarget";
+  type: "ArrayPattern";
   elements: Array<AssignmentTargetMaybeDefault | AssignmentTargetRest | null>;
-  trailing_comma: Span | null;
 }
-export type AssignmentTargetMaybeDefault = AssignmentTarget | AssignmentTargetWithDefault;
+export type AssignmentTargetMaybeDefault = AssignmentTargetWithDefault | AssignmentTarget;
 export interface AssignmentTargetWithDefault extends Span {
-  type: "AssignmentTargetWithDefault";
-  binding: AssignmentTarget;
-  init: Expression;
+  type: "AssignmentPattern";
+  left: AssignmentTarget;
+  right: Expression;
 }
 export interface AssignmentTargetRest extends Span {
   type: "RestElement";
   argument: AssignmentTarget;
 }
 export interface ObjectAssignmentTarget extends Span {
-  type: "ObjectAssignmentTarget";
+  type: "ObjectPattern";
   properties: Array<AssignmentTargetProperty | AssignmentTargetRest>;
 }
 export type AssignmentTargetProperty = AssignmentTargetPropertyIdentifier | AssignmentTargetPropertyProperty;
 export interface AssignmentTargetPropertyIdentifier extends Span {
-  type: "AssignmentTargetPropertyIdentifier";
-  binding: IdentifierReference;
-  init: Expression | null;
+  type: "Property";
+  method: false;
+  shorthand: true;
+  computed: false;
+  key: IdentifierReference;
+  value: IdentifierReference | AssignmentTargetWithDefault;
+  kind: "init";
 }
 export interface AssignmentTargetPropertyProperty extends Span {
-  type: "AssignmentTargetPropertyProperty";
-  name: PropertyKey;
-  binding: AssignmentTargetMaybeDefault;
+  type: "Property";
+  method: false;
+  shorthand: false;
+  computed: boolean;
+  key: PropertyKey;
+  value: AssignmentTargetMaybeDefault;
+  kind: "init";
 }
 export interface AwaitExpression extends Span {
   type: "AwaitExpression";
@@ -670,120 +679,110 @@ export interface BinaryExpression extends Span {
     | "<="
     | ">"
     | ">="
-    | "<<"
-    | ">>"
-    | ">>>"
     | "+"
     | "-"
     | "*"
     | "/"
     | "%"
+    | "**"
+    | "<<"
+    | ">>"
+    | ">>>"
     | "|"
     | "^"
     | "&"
     | "in"
-    | "instanceof"
-    | "**";
+    | "instanceof";
   right: Expression;
 }
 export interface CallExpression extends Span {
   type: "CallExpression";
   callee: Expression;
-  arguments: Argument[];
-  optional: boolean;
   typeParameters: TSTypeParameterInstantiation | null;
+  arguments: Array<Argument>;
+  optional: boolean;
 }
 export type Argument = SpreadElement | Expression;
+export interface SpreadElement extends Span {
+  type: "SpreadElement";
+  argument: Expression;
+}
 export interface ChainExpression extends Span {
   type: "ChainExpression";
   expression: ChainElement;
 }
-export type ChainElement = CallExpression | MemberExpression;
+export type ChainElement = CallExpression | TSNonNullExpression | MemberExpression;
 export interface Class extends Span {
   type: "ClassDeclaration" | "ClassExpression";
   id: BindingIdentifier | null;
   superClass: Expression | null;
   body: ClassBody;
+  decorators: Array<Decorator>;
   typeParameters: TSTypeParameterDeclaration | null;
   superTypeParameters: TSTypeParameterInstantiation | null;
-  implements: TSClassImplements[] | null;
-  decorators: Decorator[];
-  modifiers: Modifier[] | null;
+  implements: Array<TSClassImplements> | null;
+  abstract: boolean;
+  declare: boolean;
 }
 export interface ClassBody extends Span {
   type: "ClassBody";
-  body: ClassElement[];
+  body: Array<ClassElement>;
 }
 export type ClassElement = StaticBlock | MethodDefinition | PropertyDefinition | AccessorProperty | TSIndexSignature;
 export interface StaticBlock extends Span {
   type: "StaticBlock";
-  body: Statement[];
+  body: Array<Statement>;
 }
 export interface MethodDefinition extends Span {
   type: "MethodDefinition" | "TSAbstractMethodDefinition";
-  key: PropertyKey;
-  value: Function;
-  kind: "constructor" | "method" | "get" | "set";
-  computed: boolean;
   static: boolean;
+  computed: boolean;
+  key: PropertyKey;
+  kind: "constructor" | "method" | "get" | "set";
+  value: Function;
+  decorators: Array<Decorator>;
   override: boolean;
   optional: boolean;
-  accessibility: ("private" | "protected" | "public") | null;
-  decorators: Decorator[];
+  accessibility: "private" | "protected" | "public" | null;
 }
 export interface Function extends Span {
   type: "FunctionDeclaration" | "FunctionExpression" | "TSDeclareFunction" | "TSEmptyBodyFunctionExpression";
   id: BindingIdentifier | null;
+  expression: false;
   generator: boolean;
   async: boolean;
-  thisParam: TSThisParameter | null;
-  params: FormalParameters;
+  params: ParamPattern[];
   body: FunctionBody | null;
+  declare: boolean;
   typeParameters: TSTypeParameterDeclaration | null;
+  thisParam: TSThisParameter | null;
   returnType: TSTypeAnnotation | null;
-  modifiers: Modifier[] | null;
-}
-export interface Modifier extends Span {
-  type: "Modifier";
-  kind:
-    | "abstract"
-    | "accessor"
-    | "async"
-    | "const"
-    | "declare"
-    | "default"
-    | "export"
-    | "in"
-    | "public"
-    | "private"
-    | "protected"
-    | "readonly"
-    | "static"
-    | "out"
-    | "override";
 }
 export interface PropertyDefinition extends Span {
   type: "PropertyDefinition" | "TSAbstractPropertyDefinition";
+  static: boolean;
+  computed: boolean;
   key: PropertyKey;
   value: Expression | null;
-  computed: boolean;
-  static: boolean;
+  decorators: Array<Decorator>;
   declare: boolean;
   override: boolean;
   optional: boolean;
   definite: boolean;
   readonly: boolean;
   typeAnnotation: TSTypeAnnotation | null;
-  accessibility: ("private" | "protected" | "public") | null;
-  decorators: Decorator[];
+  accessibility: "private" | "protected" | "public" | null;
 }
 export interface AccessorProperty extends Span {
-  type: "AccessorProperty";
+  type: "AccessorProperty" | "TSAbstractAccessorProperty";
   key: PropertyKey;
   value: Expression | null;
   computed: boolean;
   static: boolean;
-  decorators: Decorator[];
+  decorators: Array<Decorator>;
+  definite: boolean;
+  typeAnnotation: TSTypeAnnotation | null;
+  accessibility: "private" | "protected" | "public" | null;
 }
 export interface TSClassImplements extends Span {
   type: "TSClassImplements";
@@ -799,7 +798,7 @@ export interface ConditionalExpression extends Span {
 export interface ImportExpression extends Span {
   type: "ImportExpression";
   source: Expression;
-  arguments: Expression[];
+  options: Expression | null;
 }
 export interface LogicalExpression extends Span {
   type: "LogicalExpression";
@@ -810,28 +809,26 @@ export interface LogicalExpression extends Span {
 export interface NewExpression extends Span {
   type: "NewExpression";
   callee: Expression;
-  arguments: Argument[];
+  arguments: Array<Argument>;
   typeParameters: TSTypeParameterInstantiation | null;
 }
 export interface ObjectExpression extends Span {
   type: "ObjectExpression";
-  properties: ObjectPropertyKind[];
-  trailingComma: Span | null;
+  properties: Array<ObjectPropertyKind>;
 }
 export type ObjectPropertyKind = ObjectProperty | SpreadElement;
 export interface ObjectProperty extends Span {
-  type: "ObjectProperty";
-  kind: "init" | "get" | "set";
-  key: PropertyKey;
-  value: Expression;
-  init: Expression | null;
+  type: "Property";
   method: boolean;
   shorthand: boolean;
   computed: boolean;
+  key: PropertyKey;
+  value: Expression;
+  kind: "init" | "get" | "set";
 }
 export interface SequenceExpression extends Span {
   type: "SequenceExpression";
-  expressions: Expression[];
+  expressions: Array<Expression>;
 }
 export interface TaggedTemplateExpression extends Span {
   type: "TaggedTemplateExpression";
@@ -854,44 +851,22 @@ export interface YieldExpression extends Span {
   argument: Expression | null;
 }
 export interface PrivateInExpression extends Span {
-  type: "PrivateInExpression";
+  type: "BinaryExpression";
   left: PrivateIdentifier;
-  operator:
-    | "=="
-    | "!="
-    | "==="
-    | "!=="
-    | "<"
-    | "<="
-    | ">"
-    | ">="
-    | "<<"
-    | ">>"
-    | ">>>"
-    | "+"
-    | "-"
-    | "*"
-    | "/"
-    | "%"
-    | "|"
-    | "^"
-    | "&"
-    | "in"
-    | "instanceof"
-    | "**";
+  operator: "in";
   right: Expression;
 }
 export interface JSXElement extends Span {
   type: "JSXElement";
   openingElement: JSXOpeningElement;
   closingElement: JSXClosingElement | null;
-  children: JSXChild[];
+  children: Array<JSXChild>;
 }
 export interface JSXOpeningElement extends Span {
   type: "JSXOpeningElement";
   selfClosing: boolean;
   name: JSXElementName;
-  attributes: JSXAttributeItem[];
+  attributes: Array<JSXAttributeItem>;
   typeParameters: TSTypeParameterInstantiation | null;
 }
 export type JSXElementName = JSXIdentifier | JSXNamespacedName | JSXMemberExpression;
@@ -922,7 +897,7 @@ export interface JSXExpressionContainer extends Span {
   type: "JSXExpressionContainer";
   expression: JSXExpression;
 }
-export type JSXExpression = Expression | JSXEmptyExpression;
+export type JSXExpression = JSXEmptyExpression | Expression;
 export interface JSXEmptyExpression extends Span {
   type: "JSXEmptyExpression";
 }
@@ -930,7 +905,7 @@ export interface JSXFragment extends Span {
   type: "JSXFragment";
   openingFragment: JSXOpeningFragment;
   closingFragment: JSXClosingFragment;
-  children: JSXChild[];
+  children: Array<JSXChild>;
 }
 export interface JSXOpeningFragment extends Span {
   type: "JSXOpeningFragment";
@@ -960,6 +935,11 @@ export interface TSInstantiationExpression extends Span {
   expression: Expression;
   typeParameters: TSTypeParameterInstantiation;
 }
+export interface V8IntrinsicExpression extends Span {
+  type: "V8IntrinsicExpression";
+  name: IdentifierName;
+  arguments: Array<Argument>;
+}
 export interface EmptyStatement extends Span {
   type: "EmptyStatement";
 }
@@ -973,23 +953,18 @@ export interface ForInStatement extends Span {
   right: Expression;
   body: Statement;
 }
-export type ForStatementLeft = VariableDeclaration | AssignmentTarget | UsingDeclaration;
+export type ForStatementLeft = VariableDeclaration | AssignmentTarget;
 export interface VariableDeclaration extends Span {
   type: "VariableDeclaration";
-  kind: "var" | "const" | "let";
-  declarations: VariableDeclarator[];
-  modifiers: Modifier[] | null;
+  declarations: Array<VariableDeclarator>;
+  kind: "var" | "const" | "let" | "using" | "await using";
+  declare: boolean;
 }
 export interface VariableDeclarator extends Span {
   type: "VariableDeclarator";
   id: BindingPattern;
   init: Expression | null;
   definite: boolean;
-}
-export interface UsingDeclaration extends Span {
-  type: "UsingDeclaration";
-  isAwait: boolean;
-  declarations: VariableDeclarator[];
 }
 export interface ForOfStatement extends Span {
   type: "ForOfStatement";
@@ -1005,7 +980,7 @@ export interface ForStatement extends Span {
   update: Expression | null;
   body: Statement;
 }
-export type ForStatementInit = VariableDeclaration | Expression | UsingDeclaration;
+export type ForStatementInit = VariableDeclaration | Expression;
 export interface IfStatement extends Span {
   type: "IfStatement";
   test: Expression;
@@ -1014,8 +989,8 @@ export interface IfStatement extends Span {
 }
 export interface LabeledStatement extends Span {
   type: "LabeledStatement";
-  label: LabelIdentifier;
   body: Statement;
+  label: LabelIdentifier;
 }
 export interface ReturnStatement extends Span {
   type: "ReturnStatement";
@@ -1024,12 +999,12 @@ export interface ReturnStatement extends Span {
 export interface SwitchStatement extends Span {
   type: "SwitchStatement";
   discriminant: Expression;
-  cases: SwitchCase[];
+  cases: Array<SwitchCase>;
 }
 export interface SwitchCase extends Span {
   type: "SwitchCase";
+  consequent: Array<Statement>;
   test: Expression | null;
-  consequent: Statement[];
 }
 export interface ThrowStatement extends Span {
   type: "ThrowStatement";
@@ -1056,6 +1031,76 @@ export interface WithStatement extends Span {
   object: Expression;
   body: Statement;
 }
+export type Declaration =
+  | VariableDeclaration
+  | Function
+  | Class
+  | TSTypeAliasDeclaration
+  | TSInterfaceDeclaration
+  | TSEnumDeclaration
+  | TSModuleDeclaration
+  | TSImportEqualsDeclaration;
+export interface TSTypeAliasDeclaration extends Span {
+  type: "TSTypeAliasDeclaration";
+  id: BindingIdentifier;
+  typeParameters: TSTypeParameterDeclaration | null;
+  typeAnnotation: TSType;
+  declare: boolean;
+}
+export interface TSInterfaceDeclaration extends Span {
+  type: "TSInterfaceDeclaration";
+  id: BindingIdentifier;
+  extends: Array<TSInterfaceHeritage> | null;
+  typeParameters: TSTypeParameterDeclaration | null;
+  body: TSInterfaceBody;
+  declare: boolean;
+}
+export interface TSInterfaceHeritage extends Span {
+  type: "TSInterfaceHeritage";
+  expression: Expression;
+  typeParameters: TSTypeParameterInstantiation | null;
+}
+export interface TSInterfaceBody extends Span {
+  type: "TSInterfaceBody";
+  body: Array<TSSignature>;
+}
+export interface TSEnumDeclaration extends Span {
+  type: "TSEnumDeclaration";
+  id: BindingIdentifier;
+  members: Array<TSEnumMember>;
+  const: boolean;
+  declare: boolean;
+}
+export interface TSEnumMember extends Span {
+  type: "TSEnumMember";
+  id: TSEnumMemberName;
+  initializer: Expression | null;
+}
+export type TSEnumMemberName = IdentifierName | StringLiteral;
+export interface TSModuleDeclaration extends Span {
+  type: "TSModuleDeclaration";
+  id: TSModuleDeclarationName;
+  body: TSModuleDeclarationBody | null;
+  kind: "global" | "module" | "namespace";
+  declare: boolean;
+}
+export type TSModuleDeclarationName = BindingIdentifier | StringLiteral;
+export type TSModuleDeclarationBody = TSModuleDeclaration | TSModuleBlock;
+export interface TSModuleBlock extends Span {
+  type: "TSModuleBlock";
+  body: Array<Directive | Statement>;
+}
+export interface TSImportEqualsDeclaration extends Span {
+  type: "TSImportEqualsDeclaration";
+  id: BindingIdentifier;
+  moduleReference: TSModuleReference;
+  importKind: "value" | "type";
+}
+export type TSModuleReference = TSExternalModuleReference | TSTypeName;
+export interface TSExternalModuleReference extends Span {
+  type: "TSExternalModuleReference";
+  expression: StringLiteral;
+}
 export type ModuleDeclaration =
   | ImportDeclaration
   | ExportAllDeclaration
@@ -1065,9 +1110,9 @@ export type ModuleDeclaration =
   | TSNamespaceExportDeclaration;
 export interface ImportDeclaration extends Span {
   type: "ImportDeclaration";
-  specifiers: ImportDeclarationSpecifier[] | null;
+  specifiers: Array<ImportDeclarationSpecifier>;
   source: StringLiteral;
-  withClause: WithClause | null;
+  attributes: Array<ImportAttribute>;
   importKind: "value" | "type";
 }
 export type ImportDeclarationSpecifier = ImportSpecifier | ImportDefaultSpecifier | ImportNamespaceSpecifier;
@@ -1077,7 +1122,7 @@ export interface ImportSpecifier extends Span {
   local: BindingIdentifier;
   importKind: "value" | "type";
 }
-export type ModuleExportName = IdentifierName | StringLiteral;
+export type ModuleExportName = IdentifierName | IdentifierReference | StringLiteral;
 export interface ImportDefaultSpecifier extends Span {
   type: "ImportDefaultSpecifier";
   local: BindingIdentifier;
@@ -1085,11 +1130,6 @@ export interface ImportDefaultSpecifier extends Span {
 export interface ImportNamespaceSpecifier extends Span {
   type: "ImportNamespaceSpecifier";
   local: BindingIdentifier;
-}
-export interface WithClause extends Span {
-  type: "WithClause";
-  attributesKeyword: IdentifierName;
-  withEntries: ImportAttribute[];
 }
 export interface ImportAttribute extends Span {
   type: "ImportAttribute";
@@ -1101,92 +1141,21 @@ export interface ExportAllDeclaration extends Span {
   type: "ExportAllDeclaration";
   exported: ModuleExportName | null;
   source: StringLiteral;
-  withClause: WithClause | null;
+  attributes: Array<ImportAttribute>;
   exportKind: "value" | "type";
 }
 export interface ExportDefaultDeclaration extends Span {
   type: "ExportDefaultDeclaration";
   declaration: ExportDefaultDeclarationKind;
-  exported: ModuleExportName;
 }
-export type ExportDefaultDeclarationKind = Expression | Function | Class | TSInterfaceDeclaration | TSEnumDeclaration;
-export interface TSInterfaceDeclaration extends Span {
-  type: "TSInterfaceDeclaration";
-  id: BindingIdentifier;
-  body: TSInterfaceBody;
-  typeParameters: TSTypeParameterDeclaration | null;
-  extends: TSInterfaceHeritage[] | null;
-  modifiers: Modifier[] | null;
-}
-export interface TSInterfaceBody extends Span {
-  type: "TSInterfaceBody";
-  body: TSSignature[];
-}
-export interface TSInterfaceHeritage extends Span {
-  type: "TSInterfaceHeritage";
-  expression: Expression;
-  typeParameters: TSTypeParameterInstantiation | null;
-}
-export interface TSEnumDeclaration extends Span {
-  type: "TSEnumDeclaration";
-  id: BindingIdentifier;
-  members: TSEnumMember[];
-  modifiers: Modifier[] | null;
-}
-export interface TSEnumMember extends Span {
-  type: "TSEnumMember";
-  id: TSEnumMemberName;
-  initializer: Expression | null;
-}
-export type TSEnumMemberName = IdentifierName | StringLiteral | Expression | NumericLiteral;
+export type ExportDefaultDeclarationKind = Function | Class | TSInterfaceDeclaration | Expression;
 export interface ExportNamedDeclaration extends Span {
   type: "ExportNamedDeclaration";
   declaration: Declaration | null;
-  specifiers: ExportSpecifier[];
+  specifiers: Array<ExportSpecifier>;
   source: StringLiteral | null;
   exportKind: "value" | "type";
-  withClause: WithClause | null;
-}
-export type Declaration =
-  | VariableDeclaration
-  | Function
-  | Class
-  | UsingDeclaration
-  | TSTypeAliasDeclaration
-  | TSInterfaceDeclaration
-  | TSEnumDeclaration
-  | TSModuleDeclaration
-  | TSImportEqualsDeclaration;
-export interface TSTypeAliasDeclaration extends Span {
-  type: "TSTypeAliasDeclaration";
-  id: BindingIdentifier;
-  typeAnnotation: TSType;
-  typeParameters: TSTypeParameterDeclaration | null;
-  modifiers: Modifier[] | null;
-}
-export interface TSModuleDeclaration extends Span {
-  type: "TSModuleDeclaration";
-  id: TSModuleDeclarationName;
-  body: TSModuleDeclarationBody;
-  kind: "global" | "module" | "namespace";
-  modifiers: Modifier[] | null;
-}
-export type TSModuleDeclarationName = IdentifierName | StringLiteral;
-export type TSModuleDeclarationBody = TSModuleDeclaration | TSModuleBlock;
-export interface TSModuleBlock extends Span {
-  type: "TSModuleBlock";
-  body: Statement[];
-}
-export interface TSImportEqualsDeclaration extends Span {
-  type: "TSImportEqualsDeclaration";
-  id: BindingIdentifier;
-  moduleReference: TSModuleReference;
-  importKind: "value" | "type";
-}
-export type TSModuleReference = TSTypeName | TSExternalModuleReference;
-export interface TSExternalModuleReference extends Span {
-  type: "TSExternalModuleReference";
-  expression: StringLiteral;
+  attributes: Array<ImportAttribute>;
 }
 export interface ExportSpecifier extends Span {
   type: "ExportSpecifier";
@@ -1202,11 +1171,18 @@ export interface TSNamespaceExportDeclaration extends Span {
   type: "TSNamespaceExportDeclaration";
   id: IdentifierName;
 }
+export interface Hashbang extends Span {
+  type: "Hashbang";
+  value: string;
+}
+export interface Span {
+  start: number;
+  end: number;
+}
 export type Node =
   | Program
   | Directive
   | StringLiteral
-  | Hashbang
   | BlockStatement
   | BreakStatement
   | LabelIdentifier
@@ -1225,29 +1201,19 @@ export type Node =
   | IdentifierName
   | Super
   | ArrayExpression
-  | SpreadElement
   | ArrowFunctionExpression
-  | FormalParameter
-  | BindingIdentifier
-  | BindingProperty
-  | PrivateIdentifier
-  | BindingRestElement
-  | ObjectPattern
-  | ArrayPattern
-  | AssignmentPattern
   | Decorator
-  | FormalParameterRest
   | TSTypeAnnotation
   | TSAnyKeyword
   | TSBigIntKeyword
   | TSBooleanKeyword
+  | TSIntrinsicKeyword
   | TSNeverKeyword
   | TSNullKeyword
   | TSNumberKeyword
   | TSObjectKeyword
   | TSStringKeyword
   | TSSymbolKeyword
-  | TSThisType
   | TSUndefinedKeyword
   | TSUnknownKeyword
   | TSVoidKeyword
@@ -1256,6 +1222,7 @@ export type Node =
   | TSConstructorType
   | TSTypeParameterDeclaration
   | TSTypeParameter
+  | BindingIdentifier
   | TSFunctionType
   | TSThisParameter
   | TSImportType
@@ -1270,14 +1237,16 @@ export type Node =
   | UnaryExpression
   | TSMappedType
   | TSNamedTupleMember
-  | TSTemplateLiteralType
-  | TSTupleType
   | TSOptionalType
   | TSRestType
+  | TSTemplateLiteralType
+  | TSThisType
+  | TSTupleType
   | TSTypeLiteral
   | TSIndexSignature
   | TSIndexSignatureName
   | TSPropertySignature
+  | PrivateIdentifier
   | TSCallSignatureDeclaration
   | TSConstructSignatureDeclaration
   | TSMethodSignature
@@ -1286,34 +1255,41 @@ export type Node =
   | TSTypeQuery
   | TSTypeReference
   | TSUnionType
+  | TSParenthesizedType
   | JSDocNullableType
+  | JSDocNonNullableType
   | JSDocUnknownType
-  | FormalParameters
+  | ObjectPattern
+  | BindingProperty
+  | BindingRestElement
+  | ArrayPattern
+  | AssignmentPattern
+  | FormalParameterRest
   | FunctionBody
   | AssignmentExpression
-  | ComputedMemberExpression
-  | StaticMemberExpression
-  | PrivateFieldExpression
   | TSAsExpression
   | TSSatisfiesExpression
   | TSNonNullExpression
   | TSTypeAssertion
+  | ComputedMemberExpression
+  | StaticMemberExpression
+  | PrivateFieldExpression
+  | ArrayAssignmentTarget
   | AssignmentTargetWithDefault
   | AssignmentTargetRest
-  | ArrayAssignmentTarget
+  | ObjectAssignmentTarget
   | AssignmentTargetPropertyIdentifier
   | AssignmentTargetPropertyProperty
-  | ObjectAssignmentTarget
   | AwaitExpression
   | BinaryExpression
   | CallExpression
+  | SpreadElement
   | ChainExpression
   | Class
   | ClassBody
   | StaticBlock
   | MethodDefinition
   | Function
-  | Modifier
   | PropertyDefinition
   | AccessorProperty
   | TSClassImplements
@@ -1345,12 +1321,12 @@ export type Node =
   | JSXSpreadAttribute
   | JSXClosingElement
   | TSInstantiationExpression
+  | V8IntrinsicExpression
   | EmptyStatement
   | ExpressionStatement
   | ForInStatement
   | VariableDeclaration
   | VariableDeclarator
-  | UsingDeclaration
   | ForOfStatement
   | ForStatement
   | IfStatement
@@ -1363,25 +1339,25 @@ export type Node =
   | CatchClause
   | WhileStatement
   | WithStatement
-  | ImportDeclaration
-  | ImportSpecifier
-  | ImportDefaultSpecifier
-  | ImportNamespaceSpecifier
-  | WithClause
-  | ImportAttribute
-  | ExportAllDeclaration
-  | ExportDefaultDeclaration
+  | TSTypeAliasDeclaration
   | TSInterfaceDeclaration
-  | TSInterfaceBody
   | TSInterfaceHeritage
+  | TSInterfaceBody
   | TSEnumDeclaration
   | TSEnumMember
-  | ExportNamedDeclaration
-  | TSTypeAliasDeclaration
   | TSModuleDeclaration
   | TSModuleBlock
   | TSImportEqualsDeclaration
   | TSExternalModuleReference
+  | ImportDeclaration
+  | ImportSpecifier
+  | ImportDefaultSpecifier
+  | ImportNamespaceSpecifier
+  | ImportAttribute
+  | ExportAllDeclaration
+  | ExportDefaultDeclaration
+  | ExportNamedDeclaration
   | ExportSpecifier
   | TSExportAssignment
-  | TSNamespaceExportDeclaration;
+  | TSNamespaceExportDeclaration
+  | Hashbang;

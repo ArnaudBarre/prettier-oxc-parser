@@ -1,44 +1,25 @@
-import { parseSync } from "../../oxc/napi/parser/index.js";
+import { parseSync } from "oxc-parser";
 import type {
   BindingPattern,
   ExpressionStatement,
   FormalParameter,
   FormalParameterRest,
-  FormalParameters,
   Node,
   Program,
-  Span,
   TSThisParameter,
 } from "./oxc-types.ts";
 import type { TSESTree } from "@typescript-eslint/types";
 import { writeFileSync } from "node:fs";
 
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
 export const oxcParse = (code: string, filename: string, debug?: boolean) => {
-  const result = parseSync(code, {
-    sourceFilename: filename,
+  const result = parseSync(filename, code, {
     preserveParens: false,
   });
-  if (result.errors.length) throw new Error(result.errors[0]);
-  const program = JSON.parse(result.program) as Program & {
-    comments: {
-      type: "Line" | "Block";
-      value: string;
-      start: number;
-      end: number;
-    }[];
+  if (result.errors.length) throw new Error(result.errors[0].message);
+  const program = result.program as unknown as Program & {
+    comments: typeof result.comments;
   };
-  setProp(program, "comments", []);
-  // https://github.com/oxc-project/oxc/issues/2674
-  const commentsStarts = new Set<number>();
-  for (const comment of result.comments) {
-    if (commentsStarts.has(comment.start)) continue;
-    commentsStarts.add(comment.start);
-    comment.start -= 2;
-    if (comment.type === "Block") comment.end += 2;
-    program.comments.push(comment);
-  }
+  setProp(program, "comments", result.comments);
 
   if (debug) writeFileSync("tmp/ast.json", JSON.stringify(program, null, 2));
 
@@ -51,41 +32,13 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
     });
   }
 
-  // https://github.com/oxc-project/oxc/issues/959#issuecomment-1976418498
-  const hasUTF16 = /[^\x00-\x7F]/.test(code);
-  const codeUTF8 = hasUTF16 ? encoder.encode(code) : null;
-  const updateSpan = (span: Span) => {
-    if (hasUTF16) {
-      span.start = decoder.decode(codeUTF8!.slice(0, span.start)).length;
-      span.end = decoder.decode(codeUTF8!.slice(0, span.end)).length;
-    }
-  };
-
-  for (const comment of program.comments) updateSpan(comment);
-
   // This is inlined so that StringLiteral.raw can be created
   // from the code variable without passing in each call
-  // Also used for span utf16 conversion
   const toESTree = (node: Node): any => {
-    // https://github.com/oxc-project/oxc/issues/2605
-    if (hasUTF16) updateSpan(node);
     switch (node.type) {
       case "Program":
         // TODO: hashbang?
         for (const stmt of node.body) toESTree(stmt);
-        if (node.directives.length) {
-          // Could also update node.directives
-          node.body.unshift(
-            ...node.directives.map((d) => ({
-              type: "ExpressionStatement" as const,
-              start: d.start,
-              end: d.end,
-              directive: d.directive,
-              expression: toESTree(d.expression),
-            })),
-          );
-          deleteProp(node, "directives");
-        }
         break;
       case "BlockStatement":
       case "StaticBlock":
@@ -93,8 +46,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         break;
       case "ImportDeclaration":
         // TODO: withClause/attributes
-        deleteProp(node, "withClause");
-        setProp(node, "attributes", []);
         if (node.specifiers) {
           for (const specifier of node.specifiers) toESTree(specifier);
         }
@@ -145,7 +96,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "ExpressionStatement":
       case "ChainExpression":
       case "Decorator":
-      case "Directive":
       case "TSExportAssignment":
       case "TSExternalModuleReference":
       case "TSNonNullExpression":
@@ -725,12 +675,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         toESTree(node.meta);
         toESTree(node.property);
         break;
-      case "UsingDeclaration":
-        // TODO convert to VariableDeclaration
-        break;
-      case "PrivateInExpression":
-        // TODO: not an TSESTree node, find what to map
-        break;
     }
     return node;
   };
@@ -743,7 +687,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
     if (thisParam) {
       const typeAnnotation = thisParam.typeAnnotation;
       if (typeAnnotation) toESTree(typeAnnotation);
-      updateSpan(thisParam);
       items.push({
         type: "Identifier",
         start: thisParam.start,
@@ -764,7 +707,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
     if (node.type === "RestElement") return toESTree(node);
     // https://github.com/typescript-eslint/typescript-eslint/blob/6954a4a463f9a2a1c20e41c91ee2c75c953dcc9f/packages/typescript-estree/src/convert.ts#L1738-L1748
     if (node.accessibility || node.readonly || node.override) {
-      updateSpan(node);
       return {
         type: "TSParameterProperty",
         start: node.start,

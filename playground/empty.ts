@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-import { compareCode } from "./compare-code";
+import { compareCode } from "./compare-code.ts";
 
 await compareCode(
   `
-type C = T extends (...args: infer A1) => unknown ? A1 : never;
+<Tag>{((foo = 1), props.value)}</Tag>
 `,
-  "file.d.ts",
+  "file.tsx",
   true,
 );

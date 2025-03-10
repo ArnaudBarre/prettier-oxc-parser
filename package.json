@@ -6,15 +6,16 @@
     "prettier": "^3"
   },
   "dependencies": {
-    "oxc-parser": "../oxc/napi/parser"
+    "oxc-parser": "0.56.5"
   },
+  "prettier": {},
   "devDependencies": {
-    "@babel/generator": "^7.23.6",
-    "@babel/parser": "^7.24.0",
+    "@babel/generator": "7.26.9",
+    "@babel/parser": "7.26.9",
     "@types/babel__generator": "^7.6.8",
-    "@types/bun": "^1.0.8",
-    "@typescript-eslint/types": "^7.1.0",
-    "prettier": "^3.2.5",
-    "typescript": "^5.3.3"
+    "@types/bun": "1.2.4",
+    "@typescript-eslint/types": "^8.26.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
   }
 }

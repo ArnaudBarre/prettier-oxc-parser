@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 import { Glob } from "bun";
-import { readFileSync, existsSync } from "node:fs";
-import { compareCode } from "./compare-code";
-import { saveJson } from "./saveJSON";
+import { existsSync, readFileSync } from "node:fs";
+import { compareCode } from "./compare-code.ts";
+import { saveJson } from "./saveJSON.ts";
 
-const glob = new Glob(process.argv[2] ?? "**/*.{js,jsx,ts,tsx}");
+const glob = new Glob(process.argv[2] ?? "**/*.{ts,tsx}");
 
 const currentState = existsSync("tmp/files.json")
   ? JSON.parse(readFileSync("tmp/files.json", "utf-8"))
@@ -19,7 +19,7 @@ const save = () => {
     nodeModules: [...nodeModules],
     otherFiles: [...otherFiles],
   });
-}
+};
 
 const folder = "../carbon-calculator";
 let count = 0;

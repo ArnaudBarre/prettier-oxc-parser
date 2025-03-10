@@ -1,53 +1,39 @@
 # Notes for Oxc maintainers
 
-## Current blockers/tasks
-
-- https://github.com/oxc-project/oxc/issues/959
-- Cleanup import attribute AST
-
-## Nice to have
-
-- Add better types to the `@oxc/parser` (see next sections)
-- JSON.parse should be done by `@oxc/parser`
-
 ### Type improvements from generate-types.ts
 
-- Use types from `parser-wasm` and traverse them from Program to get a clean and stable output
-- Inline types like Atom, LogicalOperator, PropertyKind
-- Expose a `Node` union
-- Pass the output trough Prettier
+- Inline types like LogicalOperator, PropertyKind, ModuleKind, ...
+- Change BigInt to bigint
+- Expose a `Node` union (https://github.com/oxc-project/oxc/pull/9574)
 
-## Difference with ESTree
+### Difference with TS-ESTree
 
-### To investigate
-
-- `JSXSpreadChild.expression` missing `JSXEmptyExpression`
-- `ThrowStatement.argument` is expression (maybe true in the future 🤞)
-
-### To change?
-
-- Using deprecated typeParameters on CallExpression/JSXOpeningElement/NewExpression/TaggedTemplateExpression/TSClassImplements/TSInterfaceHeritage/TSImportType/TSTypeQuery/TSTypeReference
+- Using deprecated typeParameters on CallExpression/NewExpression/TaggedTemplateExpression/JSXOpeningElement/TSClassImplements/TSInterfaceHeritage/TSImportType/TSTypeQuery/TSTypeReference
 - Using deprecated superTypeParameters on ClassDeclaration
-- Usage of wide modifiers instead of declare/abstract boolean on appropriate nodes
 - TSInterfaceDeclaration.extends null
-- ClassDeclaration.implements null
-- ImportDeclaration/ExportAllDeclaration.attributes -> .withClause
+- Class.implements null
+- `implements NodeJS.ReadableStream`: TSQualifiedName -> MemberExpression
 - TSImportAttribute -> ImportAttribute
 - TSImportAttribute value should be StringLiteral
 - TSImportAttribute.name is not a union
-- ImportExpression.attributes -> ImportExpression.arguments (here TSESTree feels weird)
-- TSMappedTypeModifierOperator?
-
-### To be documented?
-
-- FormalParameters
+- ImportExpression.attributes
+- TSMappedType.key/constraint
+- TSMappedTypeModifierOperator
+- FormalParameter
 - FunctionBody
-- MemberExpression
-- ArrayExpression hole
-- BindingPattern
-- Rest arguments/properties
 - TSThisParameter
-- UsingDeclaration
-- ArrayAssignmentTarget/ObjectAssignmentTarget
+- ExportDefaultDeclaration.exportKind
+- TSEnumDeclaration.members -> body
+- Progora.hasbang -> comment
+- `declare namespace monaco.editor {}`: TSModuleDeclaration.TSModuleDeclaration.ModuleBlock -> TSModuleDeclaration.ModuleBlock
+- TSTypeQuery.exprName[name=this] => TSTypeQuery.ThisExpression
+- TSImportType[isTypeOf=true] => TSTypeQuery
+- Missing TSParameterProperty
+- TSTypePredicate.parameterName: Identifier[name=this] => TSThisType
+
+### Glitch of OXC AST in types
+
 - PrivateInExpression
-- AssignmentTargetPropertyIdentifier
+- ObjectProperty, ObjectAssignmentTarget, BindingProperty, AssignmentTargetPropertyProperty, ArrayAssignmentTarget, AssignmentTargetRest, ...
+- TSIndexSignatureName
+- Directive

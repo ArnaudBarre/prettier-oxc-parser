@@ -1,11 +1,11 @@
 import { $ } from "bun";
 import { writeFileSync } from "node:fs";
 import { format } from "prettier";
-import * as plugin from "../src/index";
-import { oxcParse } from "../src/utils";
-import { compareAst } from "./compare-ast";
-import { defaultPlugin } from "./defaultPlugin";
-import { saveJson } from "./saveJSON";
+import * as plugin from "../src/index.ts";
+import { oxcParse } from "../src/utils-v2.ts";
+import { compareAst } from "./compare-ast.ts";
+import { defaultPlugin } from "./defaultPlugin.ts";
+import { saveJson } from "./saveJSON.ts";
 
 export const compareCode = async (
   code: string,

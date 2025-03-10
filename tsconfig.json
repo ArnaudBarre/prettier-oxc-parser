@@ -1,5 +1,6 @@
 {
-  "include": ["*.ts"],
+  "include": ["**/*.ts"],
+  "exclude": ["tmp"],
   "compilerOptions": {
     "lib": ["ESNext"],
     "target": "ESNext",
@@ -11,6 +12,7 @@
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
     "noEmit": true,
 
     /* Linting */

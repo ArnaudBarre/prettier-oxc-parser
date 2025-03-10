@@ -1,5 +1,5 @@
 import type { Plugin } from "prettier";
-import { oxcParse } from "./utils.ts";
+import { oxcParse } from "./utils-v2.ts";
 
 export const parsers: Plugin["parsers"] = {
   typescript: {

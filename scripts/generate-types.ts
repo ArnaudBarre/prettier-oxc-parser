@@ -7,13 +7,13 @@ import generate from "@babel/generator";
 import assert from "node:assert";
 
 const content = readFileSync(
-  import.meta.dir + "/../../oxc/npm/parser-wasm/oxc_parser_wasm.d.ts",
+  import.meta.dir + "/../node_modules/@oxc-project/types/types.d.ts",
   "utf-8",
 );
 const { program: ast } = parse(content, {
   sourceType: "module",
   plugins: ["typescript"],
-  sourceFilename: "oxc_parser_wasm.d.ts",
+  sourceFilename: "types.d.ts",
 });
 const exports: B.Statement[] = [];
 const nodes: string[] = [];
@@ -45,17 +45,39 @@ const visitNode = (name: string): B.TSType | null => {
       }
       type.decl.types = types;
     } else if (type.decl.type === "TSIntersectionType") {
-      assert(name === "BindingPattern", `Unexpected intersection ${name}`);
+      assert(
+        name === "BindingPattern" || name === "FormalParameter",
+        `Unexpected intersection ${name}`,
+      );
       exports.push(type.exp);
       visited.set(name, null);
       assert(
-        type.decl.types.length === 2 &&
-          type.decl.types[1].type === "TSParenthesizedType" &&
-          type.decl.types[1].typeAnnotation.type === "TSUnionType",
-        "Unexpected BindingPattern structure",
+        type.decl.types[0].type === "TSParenthesizedType" &&
+          type.decl.types[0].typeAnnotation.type === "TSTypeLiteral",
+        `Unexpected ${name} structure`,
       );
-      for (const t of type.decl.types[1].typeAnnotation.types) {
-        if (t.type === "TSTypeReference") handleReference(t);
+      for (const t of type.decl.types[0].typeAnnotation.members) {
+        if (t.type === "TSPropertySignature" && t.typeAnnotation) {
+          hanldeTSType(t.typeAnnotation);
+        }
+      }
+      if (name === "BindingPattern") {
+        assert(
+          type.decl.types.length === 2 &&
+            type.decl.types[1].type === "TSParenthesizedType" &&
+            type.decl.types[1].typeAnnotation.type === "TSUnionType",
+          "Unexpected BindingPattern structure",
+        );
+        for (const t of type.decl.types[1].typeAnnotation.types) {
+          if (t.type === "TSTypeReference") handleReference(t);
+        }
+      } else {
+        assert(
+          type.decl.types.length === 2 &&
+            type.decl.types[1].type === "TSTypeReference",
+          "Unexpected FormalParameter structure",
+        );
+        handleReference(type.decl.types[1]);
       }
     } else {
       visited.set(name, type.decl);
@@ -83,39 +105,7 @@ const visitNode = (name: string): B.TSType | null => {
         nodes.push(name);
         hasType = true;
       }
-      switch (sig.typeAnnotation.typeAnnotation.type) {
-        case "TSTypeReference":
-          if (
-            sig.typeAnnotation.typeAnnotation.typeName.type === "Identifier" &&
-            sig.typeAnnotation.typeAnnotation.typeName.name === "Array"
-          ) {
-            const params =
-              sig.typeAnnotation.typeAnnotation.typeParameters?.params;
-            assert(params?.length === 1);
-            switch (params[0].type) {
-              case "TSTypeReference":
-                const inlineType = handleReference(params[0]);
-                if (inlineType) params[0] = inlineType;
-                break;
-              case "TSUnionType":
-                handleUnionType(params[0]);
-                break;
-            }
-            break;
-          }
-          const inlineType = handleReference(sig.typeAnnotation.typeAnnotation);
-          if (inlineType) {
-            sig.typeAnnotation.typeAnnotation = inlineType;
-            if (inlineType.type === "TSUnionType") handleUnionType(inlineType);
-          }
-          break;
-        case "TSUnionType":
-          handleUnionType(sig.typeAnnotation.typeAnnotation);
-          break;
-        case "TSArrayType":
-          handleArrayType(sig.typeAnnotation.typeAnnotation);
-          break;
-      }
+      hanldeTSType(sig.typeAnnotation);
     }
     if (
       !hasType &&
@@ -155,6 +145,32 @@ const visitNode = (name: string): B.TSType | null => {
   return null;
 };
 
+const hanldeTSType = (typeAnnotation: { typeAnnotation: B.TSType }) => {
+  switch (typeAnnotation.typeAnnotation.type) {
+    case "TSTypeReference":
+      if (
+        typeAnnotation.typeAnnotation.typeName.type === "Identifier" &&
+        typeAnnotation.typeAnnotation.typeName.name === "BigInt"
+      ) {
+        typeAnnotation.typeAnnotation = { type: "TSBigIntKeyword" };
+        break;
+      }
+      const inlineType = handleReference(typeAnnotation.typeAnnotation);
+      if (inlineType) {
+        typeAnnotation.typeAnnotation = inlineType;
+        if (inlineType.type === "TSUnionType") handleUnionType(inlineType);
+      }
+      break;
+    case "TSUnionType":
+      handleUnionType(typeAnnotation.typeAnnotation);
+      break;
+    case "TSArrayType":
+      handleArrayType(typeAnnotation.typeAnnotation);
+      break;
+  }
+  return null;
+};
+
 const handleUnionType = ({ types }: B.TSUnionType) => {
   for (const [i, t] of types.entries()) {
     if (t.type === "TSTypeReference") {
@@ -173,11 +189,29 @@ const handleArrayType = (arrayType: B.TSArrayType) => {
   }
 };
 
-const handleReference = ({ typeName }: B.TSTypeReference): B.TSType | null => {
-  if (typeName.type !== "Identifier") {
-    throw new Error(`Unexpected typeName type ${typeName.type}`);
+const handleReference = (
+  typeAnnotation: B.TSTypeReference,
+): B.TSType | null => {
+  if (typeAnnotation.typeName.type !== "Identifier") {
+    throw new Error(`Unexpected typeName type ${typeAnnotation.typeName.type}`);
   }
-  return visitNode(typeName.name);
+  if (typeAnnotation.typeName.name === "Array") {
+    const params = typeAnnotation.typeParameters?.params;
+    assert(params?.length === 1);
+    switch (params[0].type) {
+      case "TSTypeReference":
+        const inlineType = handleReference(params[0]);
+        if (inlineType) params[0] = inlineType;
+        return typeAnnotation;
+      case "TSUnionType":
+        handleUnionType(params[0]);
+        return null;
+      default:
+        throw new Error(`Unexpected Array parameter ${params[0].type}`);
+        ``;
+    }
+  }
+  return visitNode(typeAnnotation.typeName.name);
 };
 
 const getInt = (name: string) => {
@@ -205,8 +239,11 @@ const getType = (name: string) => {
 };
 
 visitNode("Program");
+visitNode("Span");
 
-for (const it of exports) it.trailingComments = null;
+// Remove auto generated comment
+exports[0].leadingComments = null;
+
 const code =
   generate(B.program(exports), { concise: true }).code +
   `\nexport type Node = ${nodes.join(" | ")};`;

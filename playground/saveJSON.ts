@@ -1,4 +1,6 @@
-import { writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+
+if (!existsSync("tmp")) mkdirSync("tmp");
 
 export const saveJson = (
   name: string,
