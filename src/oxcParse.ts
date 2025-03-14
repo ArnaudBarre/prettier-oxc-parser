@@ -263,7 +263,9 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         toESTree(node.body);
         break;
       case "AccessorProperty":
-        node.end = node.end + 1; // https://github.com/oxc-project/oxc/issues/9621
+        if (code.slice(node.end, node.end + 1) === ";") {
+          node.end = node.end + 1; // https://github.com/oxc-project/oxc/issues/9621
+        }
         if (node.value) toESTree(node.value);
         break;
       case "Decorator":
@@ -272,6 +274,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
 
       // JSX
       case "JSXOpeningElement":
+        toESTree(node.name);
         for (const prop of node.attributes) toESTree(prop);
         if (node.typeParameters) toESTree(node.typeParameters);
         setProp(node, "typeArguments", node.typeParameters);
@@ -288,10 +291,17 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         if (node.closingElement) toESTree(node.closingElement);
         break;
       case "JSXAttribute":
+        toESTree(node.name);
         if (node.value) toESTree(node.value);
         break;
       case "JSXSpreadAttribute":
         toESTree(node.argument);
+        break;
+      case "JSXClosingElement":
+        toESTree(node.name);
+        break;
+      case "JSXNamespacedName":
+        renameProp(node, "property", "name"); // https://github.com/oxc-project/oxc/pull/9648
         break;
       case "JSXText":
         setProp(node, "raw", node.value);

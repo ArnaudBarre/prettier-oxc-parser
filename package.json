@@ -6,6 +6,8 @@
     "prettier": "^3"
   },
   "dependencies": {
+    "@typescript-eslint/parser": "^8.26.1",
+    "@typescript-eslint/typescript-estree": "^8.26.1",
     "oxc-parser": "0.56.5"
   },
   "prettier": {},

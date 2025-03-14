@@ -1,11 +1,11 @@
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
-import type { oxcParse } from "../src/utils-v2.ts";
+import type { oxcParse } from "../src/oxcParse.ts";
 
 export const compareAst = (oxc: ReturnType<typeof oxcParse>) => {
   const ts = JSON.parse(readFileSync("tmp/default-ast.json", "utf-8"));
-  const check = (a: any, b: any, c?: string) => {
-    assert(a === b, `${c ? `${c}: ` : ""}${a} !== ${b}`);
+  const check = (a: any, b: any, location: string) => {
+    assert(a === b, `${location}: ${a} !== ${b}`);
   };
 
   check(oxc.comments.length, ts.comments.length, "comments.length");

@@ -13,10 +13,8 @@
 - TSInterfaceDeclaration.extends null
 - Class.implements null
 - `implements NodeJS.ReadableStream`: TSQualifiedName -> MemberExpression
-- TSImportAttribute -> ImportAttribute
-- TSImportAttribute value should be StringLiteral
-- TSImportAttribute.name is not a union
-- ImportExpression.attributes
+- TSImportAttributes https://github.com/oxc-project/oxc/issues/9663
+- ImportExpression.attributes https://github.com/oxc-project/oxc/pull/9665
 - TSMappedType.key/constraint
 - TSMappedTypeModifierOperator
 - FormalParameter
@@ -30,6 +28,7 @@
 - TSImportType[isTypeOf=true] => TSTypeQuery
 - Missing TSParameterProperty
 - TSTypePredicate.parameterName: Identifier[name=this] => TSThisType
+- Class span start on export class with decorators https://github.com/estree/estree/issues/315
 
 ### Glitch of OXC AST in types
 

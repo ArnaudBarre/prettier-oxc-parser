@@ -2,7 +2,7 @@
 import { Glob } from "bun";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { format } from "prettier";
-import { oxcParse } from "../src/utils-v2.ts";
+import { oxcParse } from "../src/oxcParse.ts";
 import { compareAst } from "./compare-ast.ts";
 import { defaultPlugin } from "./defaultPlugin.ts";
 import { saveJson } from "./saveJSON.ts";
@@ -43,11 +43,22 @@ for await (const file of glob.scan(folder)) {
   console.log(file);
   const code = readFileSync(`${folder}/${file}`, "utf-8");
   if (
-    code.includes("\r") || // https://github.com/oxc-project/oxc/issues/9619
-    file.endsWith("JSHandle.ts") || // https://github.com/oxc-project/oxc/issues/9619
-    file.endsWith("protocol-tests-proxy-api.d.ts") || // Syntax error in the file
-    file.endsWith("jsx-tag-evaluation-order.tsx") || // Invlaid comma expression in JSXContainer
-    code.trim() === "" // Prettier skip default plugin call
+    // https://github.com/oxc-project/oxc/issues/9619
+    code.includes("\r") ||
+    // https://github.com/estree/estree/issues/315
+    file.endsWith("JSHandle.ts") ||
+    file.endsWith("oxc-2562.ts") ||
+    // Syntax error in the file
+    file.endsWith("protocol-tests-proxy-api.d.ts") ||
+    // Invlaid comma expression in JSXContainer
+    file.endsWith("jsx-tag-evaluation-order.tsx") ||
+    // https://github.com/typescript-eslint/typescript-eslint/issues/10937
+    file.endsWith("decorators/parameter.ts") ||
+    file.endsWith("decorators/parameter-property.ts") ||
+    // https://github.com/oxc-project/oxc/issues/9663
+    file.endsWith("oxc-2394.ts") ||
+    // Prettier skip default plugin call
+    code.trim() === ""
   ) {
     add(file);
     continue;

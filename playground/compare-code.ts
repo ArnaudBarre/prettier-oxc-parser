@@ -2,7 +2,7 @@ import { $ } from "bun";
 import { writeFileSync } from "node:fs";
 import { format } from "prettier";
 import * as plugin from "../src/index.ts";
-import { oxcParse } from "../src/utils-v2.ts";
+import { oxcParse } from "../src/oxcParse.ts";
 import { compareAst } from "./compare-ast.ts";
 import { defaultPlugin } from "./defaultPlugin.ts";
 import { saveJson } from "./saveJSON.ts";
