@@ -7,6 +7,8 @@ export const parsers: Plugin["parsers"] = {
     parse: (text, options) => oxcParse(text, options.filepath),
     locStart: (node) => node.start,
     locEnd: (node) => node.end,
-    hasPragma: () => false,
+    // The default plugins do a lot of work based on parsing through jest-docblock that does quite
+    // a lot of regexes. Not sure if it's worth it to do that here
+    hasPragma: (text) => text.includes("@format") || text.includes("@prettier"),
   },
 };

@@ -2,7 +2,7 @@
 import { Glob } from "bun";
 import { existsSync, readFileSync } from "node:fs";
 import { compareCode } from "./compare-code.ts";
-import { saveJson } from "./saveJSON.ts";
+import { saveJson } from "./json.ts";
 
 const glob = new Glob(process.argv[2] ?? "**/*.{ts,tsx}");
 

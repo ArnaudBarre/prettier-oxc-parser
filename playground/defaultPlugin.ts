@@ -1,6 +1,6 @@
 import type { Plugin } from "prettier";
 import typescriptParser from "prettier/plugins/typescript";
-import { saveJson } from "./saveJSON.ts";
+import { saveJson } from "./json.ts";
 
 export const defaultPlugin: Plugin = {
   parsers: {

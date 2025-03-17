@@ -5,7 +5,7 @@ import type {
   MemberExpression,
   TSQualifiedName,
 } from "./oxc-types.ts";
-import { saveJson } from "../playground/saveJSON.ts";
+import { saveJson } from "../playground/json.ts";
 
 export const oxcParse = (code: string, filename: string, debug?: boolean) => {
   const result = parseSync(filename, code, {
@@ -64,7 +64,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         break;
       case "ExportDefaultDeclaration":
         toESTree(node.declaration);
-        setProp(node, "exportKind", "value");
         break;
       case "ExportNamedDeclaration":
         if (node.declaration) toESTree(node.declaration);
@@ -135,17 +134,21 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
             const baseStart = i === 0 ? node.start : node.params[i - 1].end;
             const searchString =
               param.accessibility ?? (param.override ? "override" : "readonly");
+            const { decorators, ...parameter } = param;
             node.params[i] = {
               type: "TSParameterProperty",
               accessibility: param.accessibility,
               start:
-                baseStart +
-                code
-                  .slice(baseStart, node.params[i].start)
-                  .indexOf(searchString),
+                decorators.length > 0
+                  ? decorators[0].start
+                  : baseStart +
+                    code
+                      .slice(baseStart, node.params[i].start)
+                      .indexOf(searchString),
+              decorators,
               end: param.end,
               override: param.override,
-              parameter: param,
+              parameter,
               readonly: param.readonly,
               static: false,
             } as any;
@@ -313,12 +316,16 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "TSNonNullExpression":
         toESTree(node.expression);
         break;
-      case "TSInstantiationExpression":
       case "TSTypeReference":
       case "TSClassImplements":
       case "TSInterfaceHeritage":
         if (node.typeParameters) toESTree(node.typeParameters);
         renameProp(node, "typeParameters", "typeArguments");
+        break;
+      case "TSInstantiationExpression":
+        if (node.typeParameters) toESTree(node.typeParameters);
+        renameProp(node, "typeParameters", "typeArguments");
+        if (node.expression) toESTree(node.expression);
         break;
       case "TSImportType":
         if (node.typeParameters) toESTree(node.typeParameters);
@@ -439,6 +446,9 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "TSInterfaceBody":
         for (const property of node.body) toESTree(property);
         break;
+      case "TSInferType":
+        toESTree(node.typeParameter);
+        break;
       case "TSMethodSignature":
         if (node.returnType) toESTree(node.returnType);
         for (const param of node.params) toESTree(param);
@@ -500,6 +510,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         for (const param of node.params) toESTree(param);
         break;
       case "TSEnumDeclaration":
+        for (const member of node.members) toESTree(member);
         setProp(node, "body", {
           type: "TSEnumBody",
           start: node.id.end + 1,
@@ -507,11 +518,14 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
           members: node.members,
         });
         break;
+      case "TSEnumMember":
+        if (node.initializer) toESTree(node.initializer);
+        break;
     }
     return node;
   };
 
-  return toESTree(program);
+  return toESTree(program) as typeof program;
 };
 
 const setProp = (node: Node, key: string, value: any) => {

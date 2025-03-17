@@ -5,7 +5,7 @@ import * as plugin from "../src/index.ts";
 import { oxcParse } from "../src/oxcParse.ts";
 import { compareAst } from "./compare-ast.ts";
 import { defaultPlugin } from "./defaultPlugin.ts";
-import { saveJson } from "./saveJSON.ts";
+import { readJson, saveJson } from "./json.ts";
 
 export const compareCode = async (
   code: string,
@@ -14,6 +14,10 @@ export const compareCode = async (
 ) => {
   const ast = oxcParse(code, filename, true);
   saveJson("ast-updated", ast);
+
+  const compare = () => {
+    compareAst(readJson("ast-updated"), readJson("default-ast"));
+  };
 
   const withoutPlugin = await format(code, {
     filepath: filename,
@@ -29,10 +33,10 @@ export const compareCode = async (
     if (withPlugin !== withoutPlugin) {
       console.log("❌");
       await $`git diff --no-index --word-diff tmp/with-plugin.ts tmp/without-plugin.ts`;
-      compareAst(ast);
+      compare();
       return false;
     } else if (forceCompareAst) {
-      compareAst(ast);
+      compare();
       return true;
     } else {
       return true;
@@ -40,7 +44,7 @@ export const compareCode = async (
   } catch (e) {
     console.log("❌");
     console.log(e);
-    compareAst(ast);
+    compare();
     return false;
   }
 };

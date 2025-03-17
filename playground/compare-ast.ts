@@ -1,9 +1,6 @@
 import assert from "node:assert";
-import { readFileSync } from "node:fs";
-import type { oxcParse } from "../src/oxcParse.ts";
 
-export const compareAst = (oxc: ReturnType<typeof oxcParse>) => {
-  const ts = JSON.parse(readFileSync("tmp/default-ast.json", "utf-8"));
+export const compareAst = (oxc: any, ts: any) => {
   const check = (a: any, b: any, location: string) => {
     assert(a === b, `${location}: ${a} !== ${b}`);
   };
@@ -66,6 +63,8 @@ export const compareAst = (oxc: ReturnType<typeof oxcParse>) => {
         } else {
           compareNodes(oxc[k], ts[k], c2);
         }
+      } else {
+        check(oxc[k], ts[k], c2);
       }
     }
   };

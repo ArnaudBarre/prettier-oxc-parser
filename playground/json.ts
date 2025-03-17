@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 if (!existsSync("tmp")) mkdirSync("tmp");
 
@@ -18,4 +18,8 @@ export const saveJson = (
       2,
     ),
   );
+};
+
+export const readJson = (name: string) => {
+  return JSON.parse(readFileSync(`tmp/${name}.json`, "utf-8"));
 };

@@ -3,8 +3,8 @@ import { compareCode } from "./compare-code.ts";
 
 await compareCode(
   `
-<Tag>{((foo = 1), props.value)}</Tag>
+export type PositiveInfinity = 1e999;
 `,
-  "file.tsx",
+  "file.ts",
   true,
 );
