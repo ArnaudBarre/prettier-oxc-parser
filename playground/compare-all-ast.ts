@@ -29,11 +29,9 @@ const save = () => {
 const shouldSkip = (node: any) => {
   if (!node) return false;
 
-  if (node.type === "TSEnumMember" && node.computed)
+  if (node.type === "TSEnumMember" && node.computed) {
     return "TSEnumMember computed";
-  if (node.type === "TSImportType") return "TSImportType"; // https://github.com/oxc-project/oxc/issues/9663
-  if (node.type === "AssignmentPattern" && node.decorators?.length)
-    return "AssignmentPattern decorators"; // https://github.com/typescript-eslint/typescript-eslint/issues/10937
+  }
   if (
     node.type === "JSXExpressionContainer" &&
     node.expression.type === "SequenceExpression"
@@ -49,6 +47,22 @@ const shouldSkip = (node: any) => {
     // https://github.com/estree/estree/issues/315
     return "ExportNamedDeclaration ClassDeclaration decorators";
   }
+  if (
+    node.type === "TSFunctionType" &&
+    node.params.some((p: any) => p.name === "this")
+  ) {
+    // https://github.com/oxc-project/oxc/issues/10068
+    return "TSFunctionType thisParam";
+  }
+  if (
+    node.type === "ExportNamedDeclaration" &&
+    (node.declaration?.type === "TSDeclareFunction" ||
+      node.declaration?.declare)
+  ) {
+    // https://github.com/oxc-project/oxc/issues/10069
+    return "ExportNamedDeclaration exportKind";
+  }
+
   for (const key in node) {
     if (typeof node[key] !== "object") continue;
     if (Array.isArray(node[key])) {
@@ -106,7 +120,7 @@ for await (const file of glob.scan(folder)) {
     const defaultAST = readJson("default-ast");
     const skip = shouldSkip(defaultAST);
     if (skip) {
-      console.log(`skip ${file} ${skip}`);
+      console.log(`skip ${file}: ${skip}`);
       skipFiles[file] = skip;
       continue;
     }

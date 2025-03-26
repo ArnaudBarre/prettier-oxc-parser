@@ -8,17 +8,11 @@
 
 ### Difference with TS-ESTree
 
-- Using deprecated typeParameters on CallExpression/NewExpression/TaggedTemplateExpression/JSXOpeningElement/TSClassImplements/TSInterfaceHeritage/TSImportType/TSTypeQuery/TSTypeReference
-- Using deprecated superTypeParameters on ClassDeclaration
 - TSInterfaceDeclaration.extends null
 - Class.implements null
 - `implements NodeJS.ReadableStream`: TSQualifiedName -> MemberExpression
-- TSImportAttributes https://github.com/oxc-project/oxc/issues/9663
-- ImportExpression.attributes https://github.com/oxc-project/oxc/pull/9665
 - TSMappedType.key/constraint
 - TSMappedTypeModifierOperator
-- FormalParameter
-- FunctionBody
 - TSThisParameter
 - ExportDefaultDeclaration.exportKind
 - TSEnumDeclaration.members -> body
@@ -36,3 +30,6 @@
 - ObjectProperty, ObjectAssignmentTarget, BindingProperty, AssignmentTargetPropertyProperty, ArrayAssignmentTarget, AssignmentTargetRest, ...
 - TSIndexSignatureName
 - Directive
+- FunctionBody
+- FormalParameter
+- TSThisParameter

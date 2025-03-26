@@ -41,22 +41,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
     if ("typeAnnotation" in node && node.typeAnnotation) {
       node.typeAnnotation = toESTree(node.typeAnnotation as any);
     }
-    // For factorization
-    if ("thisParam" in node && node.thisParam) {
-      node.params.unshift({
-        type: "Identifier",
-        start: node.thisParam.start,
-        end: node.thisParam.end,
-        name: "this",
-        typeAnnotation: node.thisParam.typeAnnotation,
-        decorators: [],
-        accessibility: null,
-        readonly: false,
-        override: false,
-        optional: false,
-      });
-      deleteProp(node, "thisParam");
-    }
 
     switch (node.type) {
       case "Program":
@@ -64,6 +48,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         break;
       case "ExportDefaultDeclaration":
         toESTree(node.declaration);
+        setProp(node, "exportKind", "value");
         break;
       case "ExportNamedDeclaration":
         if (node.declaration) toESTree(node.declaration);
@@ -78,12 +63,10 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "CallExpression":
         toESTree(node.callee);
         for (const arg of node.arguments) toESTree(arg);
-        if (node.typeParameters) toESTree(node.typeParameters);
-        setProp(node, "typeArguments", node.typeParameters);
+        if (node.typeArguments) toESTree(node.typeArguments);
         break;
       case "TaggedTemplateExpression":
-        if (node.typeParameters) toESTree(node.typeParameters);
-        setProp(node, "typeArguments", node.typeParameters);
+        if (node.typeArguments) toESTree(node.typeArguments);
         break;
       case "UnaryExpression":
       case "ReturnStatement":
@@ -92,14 +75,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         break;
       case "VariableDeclaration":
         for (const decl of node.declarations) toESTree(decl);
-        if (
-          (node.kind === "using" || node.kind === "await using") &&
-          code.slice(node.end, node.end + 1) === ";"
-        ) {
-          // https://github.com/oxc-project/oxc/issues/9620
-          node.end = node.end + 1;
-        }
-
         // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L100-L107
         const lastDeclaration = node.declarations.at(-1);
         if (
@@ -127,6 +102,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         for (let i = 0; i < node.params.length; i++) {
           const param = node.params[i];
           toESTree(param);
+          // https://github.com/oxc-project/oxc/issues/10070
           if (
             param.type !== "RestElement" &&
             (param.accessibility || param.override || param.readonly)
@@ -152,9 +128,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
               readonly: param.readonly,
               static: false,
             } as any;
-          } else if (param.optional && !param.typeAnnotation) {
-            // https://github.com/oxc-project/oxc/pull/9636
-            node.params[i].end = code.indexOf("?", node.params[i].start) + 1;
           }
         }
         break;
@@ -168,8 +141,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "ClassExpression":
         toESTree(node.body);
         if (node.typeParameters) toESTree(node.typeParameters);
-        if (node.superTypeParameters) toESTree(node.superTypeParameters);
-        renameProp(node, "superTypeParameters", "superTypeArguments");
+        if (node.superTypeArguments) toESTree(node.superTypeArguments);
         if (node.implements) {
           for (const impl of node.implements) {
             // implements NodeJS.ReadableStream
@@ -197,7 +169,9 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "PropertyDefinition":
         toESTree(node.key);
         if (node.value) toESTree(node.value);
-        for (const decorator of node.decorators) toESTree(decorator);
+        if (node.decorators) {
+          for (const decorator of node.decorators) toESTree(decorator);
+        }
         break;
       case "ObjectExpression":
         for (const property of node.properties) toESTree(property);
@@ -279,8 +253,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "JSXOpeningElement":
         toESTree(node.name);
         for (const prop of node.attributes) toESTree(prop);
-        if (node.typeParameters) toESTree(node.typeParameters);
-        setProp(node, "typeArguments", node.typeParameters);
+        if (node.typeArguments) toESTree(node.typeArguments);
         break;
       case "JSXExpressionContainer":
         toESTree(node.expression);
@@ -304,10 +277,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         toESTree(node.name);
         break;
       case "JSXNamespacedName":
-        renameProp(node, "property", "name"); // https://github.com/oxc-project/oxc/pull/9648
-        break;
       case "JSXText":
-        setProp(node, "raw", node.value);
         break;
 
       // TS
@@ -319,8 +289,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "TSTypeReference":
       case "TSClassImplements":
       case "TSInterfaceHeritage":
-        if (node.typeParameters) toESTree(node.typeParameters);
-        renameProp(node, "typeParameters", "typeArguments");
+        if (node.typeArguments) toESTree(node.typeArguments);
         break;
       case "TSInstantiationExpression":
         if (node.typeParameters) toESTree(node.typeParameters);
@@ -328,9 +297,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         if (node.expression) toESTree(node.expression);
         break;
       case "TSImportType":
-        if (node.typeParameters) toESTree(node.typeParameters);
-        renameProp(node, "typeParameters", "typeArguments");
-        renameProp(node, "parameter", "argument");
+        if (node.typeArguments) toESTree(node.typeArguments);
         if (node.isTypeOf) {
           return {
             type: "TSTypeQuery",
@@ -345,9 +312,8 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         }
         break;
       case "TSTypeQuery":
-        if (node.typeParameters) toESTree(node.typeParameters);
+        if (node.typeArguments) toESTree(node.typeArguments);
         toESTree(node.exprName);
-        renameProp(node, "typeParameters", "typeArguments");
         if (
           node.exprName.type === "Identifier" &&
           node.exprName.name === "this"
@@ -471,15 +437,8 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
       case "TSFunctionType":
       case "TSEmptyBodyFunctionExpression":
         if (node.returnType) toESTree(node.returnType);
-        for (const param of node.params) {
-          toESTree(param);
-          if (param.optional && !param.typeAnnotation) {
-            // https://github.com/oxc-project/oxc/pull/9636
-            param.end = code.indexOf("?", param.start) + 1;
-          }
-        }
+        for (const param of node.params) toESTree(param);
         if (node.typeParameters) toESTree(node.typeParameters);
-
         break;
       case "TSTypeLiteral":
         for (const property of node.members) toESTree(property);
