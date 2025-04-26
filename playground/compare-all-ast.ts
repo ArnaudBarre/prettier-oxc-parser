@@ -29,8 +29,19 @@ const save = () => {
 const shouldSkip = (node: any) => {
   if (!node) return false;
 
-  if (node.type === "TSEnumMember" && node.computed) {
-    return "TSEnumMember computed";
+  if (node.type === "TSImportType" && node.attributes?.length) {
+    // https://github.com/typescript-eslint/typescript-eslint/pull/10691
+    // Not yet in bundled prettier plugin
+    return "TSImportType attributes";
+  }
+  if (
+    node.type === "TSClassImplements" &&
+    node.expression?.type === "MemberExpression" &&
+    node.expression.object?.type === "MemberExpression"
+  ) {
+    // https://github.com/oxc-project/oxc/pull/10607
+    // Not shipped yet
+    return "TSClassImplements MemberExpression";
   }
   if (
     node.type === "JSXExpressionContainer" &&
@@ -39,28 +50,10 @@ const shouldSkip = (node: any) => {
     // Invalid for OXC because invalid for TS https://github.com/microsoft/TypeScript/issues/5991#issuecomment-162960046
     return "JSXExpressionContainer SequenceExpression";
   }
-  if (
-    node.type === "ExportNamedDeclaration" &&
-    node.declaration?.type === "ClassDeclaration" &&
-    node.declaration.decorators?.length
-  ) {
-    // https://github.com/estree/estree/issues/315
-    return "ExportNamedDeclaration ClassDeclaration decorators";
-  }
-  if (
-    node.type === "TSFunctionType" &&
-    node.params.some((p: any) => p.name === "this")
-  ) {
-    // https://github.com/oxc-project/oxc/issues/10068
-    return "TSFunctionType thisParam";
-  }
-  if (
-    node.type === "ExportNamedDeclaration" &&
-    (node.declaration?.type === "TSDeclareFunction" ||
-      node.declaration?.declare)
-  ) {
-    // https://github.com/oxc-project/oxc/issues/10069
-    return "ExportNamedDeclaration exportKind";
+  if (node.type === "AssignmentPattern" && node.decorators?.length) {
+    // https://github.com/typescript-eslint/typescript-eslint/issues/10937
+    // Not yet fix in bundled prettier plugin
+    return "AssignmentPattern decorators";
   }
 
   for (const key in node) {
@@ -79,17 +72,18 @@ const shouldSkip = (node: any) => {
 const folder = "..";
 let count = 0;
 for await (const file of glob.scan(folder)) {
-  const nodeModulePath = file.split("node_modules/").at(-1);
-  if (nodeModulePath) {
+  const isNodeModule = file.includes("node_modules/");
+  const nodeModulePath = file.split("node_modules/").at(-1)!;
+  if (isNodeModule) {
     if (nodeModules.has(nodeModulePath)) continue;
   } else {
     if (otherFiles.has(file)) continue;
   }
-  const add = (file: string) => {
-    if (nodeModulePath) {
+  const add = () => {
+    if (isNodeModule) {
       nodeModules.add(nodeModulePath);
     } else {
-      otherFiles.delete(file);
+      otherFiles.add(file);
     }
   };
   console.log(file);
@@ -104,7 +98,7 @@ for await (const file of glob.scan(folder)) {
     code.trim() === "" || // Prettier skip plugin call on empty file
     file.includes("fail/oxc")
   ) {
-    add(file);
+    add();
     continue;
   }
 
@@ -114,7 +108,7 @@ for await (const file of glob.scan(folder)) {
       await format(code, { filepath: file, plugins: [defaultPlugin] });
     } catch (e) {
       // Ignore file with syntax error
-      add(file);
+      add();
       continue;
     }
     const defaultAST = readJson("default-ast");
@@ -124,10 +118,20 @@ for await (const file of glob.scan(folder)) {
       skipFiles[file] = skip;
       continue;
     }
-    const ast = oxcParse(code, file, true);
-    saveJson("ast-updated", ast);
+    try {
+      const ast = oxcParse(code, file, true);
+      saveJson("ast-updated", ast);
+    } catch (e) {
+      if (e instanceof Error) {
+        console.log(`skip ${file}: ${e.message}`);
+        skipFiles[file] = e.message;
+        continue;
+      } else {
+        throw e;
+      }
+    }
     compareAst(readJson("ast-updated"), defaultAST);
-    add(file);
+    add();
     count++;
   } catch (e) {
     console.log(e);

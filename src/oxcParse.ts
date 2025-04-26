@@ -1,10 +1,9 @@
-import { parseSync } from "oxc-parser";
-import type {
-  Node,
-  Program,
-  MemberExpression,
-  TSQualifiedName,
-} from "./oxc-types.ts";
+import {
+  parseSync,
+  type LogicalExpression,
+  type TSQualifiedName,
+} from "oxc-parser";
+import type { Node, Program, MemberExpression } from "./oxc-types.ts";
 import { saveJson } from "../playground/json.ts";
 
 export const oxcParse = (code: string, filename: string, debug?: boolean) => {
@@ -36,19 +35,12 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
   const toESTree = (node: Node): any => {
     setProp(node, "visited", true);
 
-    // Not done in the switch because of the way BindingPattern is typed
-    // This also factorize this reccurent property
-    if ("typeAnnotation" in node && node.typeAnnotation) {
-      node.typeAnnotation = toESTree(node.typeAnnotation as any);
-    }
-
     switch (node.type) {
       case "Program":
         for (const stmt of node.body) toESTree(stmt);
         break;
       case "ExportDefaultDeclaration":
         toESTree(node.declaration);
-        setProp(node, "exportKind", "value");
         break;
       case "ExportNamedDeclaration":
         if (node.declaration) toESTree(node.declaration);
@@ -99,37 +91,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         if (node.body) toESTree(node.body);
         if (node.returnType) toESTree(node.returnType);
         if (node.typeParameters) toESTree(node.typeParameters);
-        for (let i = 0; i < node.params.length; i++) {
-          const param = node.params[i];
-          toESTree(param);
-          // https://github.com/oxc-project/oxc/issues/10070
-          if (
-            param.type !== "RestElement" &&
-            (param.accessibility || param.override || param.readonly)
-          ) {
-            const baseStart = i === 0 ? node.start : node.params[i - 1].end;
-            const searchString =
-              param.accessibility ?? (param.override ? "override" : "readonly");
-            const { decorators, ...parameter } = param;
-            node.params[i] = {
-              type: "TSParameterProperty",
-              accessibility: param.accessibility,
-              start:
-                decorators.length > 0
-                  ? decorators[0].start
-                  : baseStart +
-                    code
-                      .slice(baseStart, node.params[i].start)
-                      .indexOf(searchString),
-              decorators,
-              end: param.end,
-              override: param.override,
-              parameter,
-              readonly: param.readonly,
-              static: false,
-            } as any;
-          }
-        }
+        for (const param of node.params) toESTree(param);
         break;
       case "SwitchStatement":
         for (const caseClause of node.cases) toESTree(caseClause);
@@ -166,8 +128,15 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         break;
       case "MethodDefinition":
       case "TSAbstractMethodDefinition":
+        toESTree(node.key);
+        if (node.value) toESTree(node.value);
+        if (node.decorators) {
+          for (const decorator of node.decorators) toESTree(decorator);
+        }
+        break;
       case "PropertyDefinition":
         toESTree(node.key);
+        if (node.typeAnnotation) toESTree(node.typeAnnotation);
         if (node.value) toESTree(node.value);
         if (node.decorators) {
           for (const decorator of node.decorators) toESTree(decorator);
@@ -191,14 +160,20 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         toESTree(node.alternate);
         break;
       case "IfStatement":
-        toESTree(node.test);
-        toESTree(node.consequent);
-        if (node.alternate) toESTree(node.alternate);
+        node.test = toESTree(node.test);
+        node.consequent = toESTree(node.consequent);
+        if (node.alternate) node.alternate = toESTree(node.alternate);
         break;
       case "BinaryExpression":
+        node.left = toESTree(node.left);
+        node.right = toESTree(node.right);
+        break;
       case "LogicalExpression":
-        toESTree(node.left);
-        toESTree(node.right);
+        if (isUnbalancedLogicalTree(node)) {
+          return rebalanceLogicalTree(node);
+        }
+        node.left = toESTree(node.left);
+        node.right = toESTree(node.right);
         break;
       case "AwaitExpression":
       case "ThrowStatement":
@@ -240,9 +215,6 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         toESTree(node.body);
         break;
       case "AccessorProperty":
-        if (code.slice(node.end, node.end + 1) === ";") {
-          node.end = node.end + 1; // https://github.com/oxc-project/oxc/issues/9621
-        }
         if (node.value) toESTree(node.value);
         break;
       case "Decorator":
@@ -281,35 +253,22 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         break;
 
       // TS
-      case "TSSatisfiesExpression":
       case "TSAsExpression":
+      case "TSSatisfiesExpression":
+        toESTree(node.typeAnnotation);
+        toESTree(node.expression);
+        break;
       case "TSNonNullExpression":
         toESTree(node.expression);
         break;
       case "TSTypeReference":
       case "TSClassImplements":
       case "TSInterfaceHeritage":
+      case "TSImportType":
         if (node.typeArguments) toESTree(node.typeArguments);
         break;
       case "TSInstantiationExpression":
-        if (node.typeParameters) toESTree(node.typeParameters);
-        renameProp(node, "typeParameters", "typeArguments");
         if (node.expression) toESTree(node.expression);
-        break;
-      case "TSImportType":
-        if (node.typeArguments) toESTree(node.typeArguments);
-        if (node.isTypeOf) {
-          return {
-            type: "TSTypeQuery",
-            start: node.start,
-            end: node.end,
-            exprName: {
-              ...node,
-              start:
-                node.start + code.slice(node.start, node.end).indexOf("import"),
-            },
-          };
-        }
         break;
       case "TSTypeQuery":
         if (node.typeArguments) toESTree(node.typeArguments);
@@ -328,6 +287,7 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         toESTree(node.left);
         break;
       case "TSTypePredicate":
+        if (node.typeAnnotation) toESTree(node.typeAnnotation);
         if (
           node.parameterName.type === "Identifier" &&
           node.parameterName.name === "this"
@@ -336,7 +296,14 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         }
         break;
       case "TSTypeAliasDeclaration":
+        toESTree(node.typeAnnotation);
         if (node.typeParameters) toESTree(node.typeParameters);
+        break;
+      case "TSTypeOperator":
+      case "TSTypeAnnotation":
+      case "Identifier":
+      case "TSPropertySignature":
+        if (node.typeAnnotation) toESTree(node.typeAnnotation);
         break;
       case "TSIndexedAccessType":
         node.objectType = toESTree(node.objectType);
@@ -344,24 +311,27 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         break;
       case "TSMappedType":
         if (node.nameType) toESTree(node.nameType);
-        toESTree(node.typeParameter);
-        setProp(node, "key", node.typeParameter.name);
-        setProp(node, "constraint", node.typeParameter.constraint);
-        if (node.optional === "true") setProp(node, "optional", true);
-        if (node.optional === "none") setProp(node, "optional", false);
-        if (node.readonly === "true") setProp(node, "readonly", true);
-        if (node.readonly === "none") setProp(node, "readonly", false);
+        if (node.constraint) toESTree(node.constraint);
+        if (node.typeAnnotation) toESTree(node.typeAnnotation);
+        // backward compatibility
+        if (node.constraint) {
+          setProp(node, "typeParameter", {
+            type: "TSTypeParameter",
+            start: node.key.start,
+            end: node.constraint.end,
+            const: false,
+            constraint: node.constraint,
+            in: false,
+            name: node.key,
+            out: false,
+          });
+        }
         break;
       case "TSUnionType":
       case "TSIntersectionType":
         // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L129-L135
         if (node.types.length === 1) {
-          const newNode = toESTree(node.types[0]);
-          deleteProp(node, "types");
-          for (const key in newNode) {
-            setProp(node, key, newNode[key]);
-          }
-          return newNode;
+          return toESTree(node.types[0]);
         }
         for (let i = 0; i < node.types.length; i++) {
           node.types[i] = toESTree(node.types[i]);
@@ -469,13 +439,14 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
         for (const param of node.params) toESTree(param);
         break;
       case "TSEnumDeclaration":
+        if (node.body) {
+          toESTree(node.body);
+          // backward compatibility
+          setProp(node, "members", node.body.members);
+        }
+        break;
+      case "TSEnumBody":
         for (const member of node.members) toESTree(member);
-        setProp(node, "body", {
-          type: "TSEnumBody",
-          start: node.id.end + 1,
-          end: node.end,
-          members: node.members,
-        });
         break;
       case "TSEnumMember":
         if (node.initializer) toESTree(node.initializer);
@@ -490,14 +461,32 @@ export const oxcParse = (code: string, filename: string, debug?: boolean) => {
 const setProp = (node: Node, key: string, value: any) => {
   (node as any)[key] = value;
 };
-const renameProp = <T extends Node>(
-  node: T,
-  oldKey: keyof T,
-  newKey: string,
-) => {
-  setProp(node, newKey, node[oldKey]);
-  delete node[oldKey];
-};
 const deleteProp = <T>(node: T, key: keyof T) => {
   delete node[key];
+};
+
+const isUnbalancedLogicalTree = (
+  node: LogicalExpression,
+): node is LogicalExpression & { right: LogicalExpression } =>
+  node.right.type === "LogicalExpression" &&
+  node.operator === node.right.operator;
+
+const rebalanceLogicalTree = (node: LogicalExpression): LogicalExpression => {
+  if (!isUnbalancedLogicalTree(node)) return node;
+
+  return rebalanceLogicalTree({
+    type: "LogicalExpression",
+    operator: node.operator,
+    left: rebalanceLogicalTree({
+      type: "LogicalExpression",
+      operator: node.operator,
+      left: node.left,
+      right: node.right.left,
+      start: node.left.start,
+      end: node.right.left.end,
+    }),
+    right: node.right.right,
+    start: node.start,
+    end: node.end,
+  });
 };
