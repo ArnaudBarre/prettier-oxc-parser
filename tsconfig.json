@@ -2,11 +2,10 @@
   "include": ["**/*.ts"],
   "exclude": ["tmp"],
   "compilerOptions": {
-    "lib": ["ESNext"],
-    "target": "ESNext",
+    "target": "ES2022",
     "module": "ESNext",
     "moduleDetection": "force",
-    "jsx": "react-jsx",
+    "lib": ["ES2023"],
 
     /* Bundler mode */
     "moduleResolution": "bundler",

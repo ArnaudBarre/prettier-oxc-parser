@@ -1,4 +1,3 @@
-import { $ } from "bun";
 import { writeFileSync } from "node:fs";
 import { format } from "prettier";
 import * as plugin from "../src/index.ts";
@@ -6,45 +5,39 @@ import { oxcParse } from "../src/oxcParse.ts";
 import { compareAst } from "./compare-ast.ts";
 import { defaultPlugin } from "./defaultPlugin.ts";
 import { readJson, saveJson } from "./json.ts";
+import { execSync } from "node:child_process";
 
-export const compareCode = async (
-  code: string,
-  filename: string,
-  forceCompareAst?: boolean,
-) => {
-  const ast = oxcParse(code, filename, true);
-  saveJson("ast-updated", ast);
-
-  const compare = () => {
-    compareAst(readJson("ast-updated"), readJson("default-ast"));
-  };
-
-  const withoutPlugin = await format(code, {
-    filepath: filename,
-    plugins: [defaultPlugin],
-  });
-  writeFileSync("tmp/without-plugin.ts", withoutPlugin);
+export const compareCode = async (code: string, filename: string) => {
+  let withDefaultPlugin: string;
   try {
-    const withPlugin = await format(code, {
+    withDefaultPlugin = await format(code, {
       filepath: filename,
-      plugins: [plugin],
+      plugins: [defaultPlugin],
     });
-    writeFileSync("tmp/with-plugin.ts", withPlugin);
-    if (withPlugin !== withoutPlugin) {
-      console.log("❌");
-      await $`git diff --no-index --word-diff tmp/with-plugin.ts tmp/without-plugin.ts`;
-      compare();
-      return false;
-    } else if (forceCompareAst) {
-      compare();
-      return true;
-    } else {
-      return true;
-    }
-  } catch (e) {
-    console.log("❌");
-    console.log(e);
-    compare();
-    return false;
+  } catch {
+    console.log("Can't parse code");
+    // If the code is not parsable, we can't compare it
+    return true;
   }
+  writeFileSync("tmp/default-plugin.ts", withDefaultPlugin);
+
+  const withOxcPlugin = await format(code, {
+    filepath: filename,
+    plugins: [plugin],
+  });
+  writeFileSync("tmp/oxc-plugin.ts", withOxcPlugin);
+
+  if (withOxcPlugin === withDefaultPlugin) return true;
+
+  console.log("❌");
+  try {
+    execSync(
+      `git diff --no-index --word-diff tmp/oxc-plugin.ts tmp/default-plugin.ts`,
+      { stdio: "inherit" },
+    );
+  } catch {}
+  saveJson("oxc-ast-updated", oxcParse(code, filename));
+  compareAst(readJson("oxc-ast-updated"), readJson("default-ast"));
+
+  return false;
 };

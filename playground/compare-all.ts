@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { compareCode } from "./compare-code.ts";
 import { saveJson } from "./json.ts";
 
-const glob = new Glob(process.argv[2] ?? "**/*.{ts,tsx}");
+const glob = new Glob(process.argv[2] ?? "**/*.{js,jsx,ts,tsx}");
 
 const currentState = existsSync("tmp/files.json")
   ? JSON.parse(readFileSync("tmp/files.json", "utf-8"))
@@ -21,11 +21,12 @@ const save = () => {
   });
 };
 
-const folder = "../carbon-calculator";
+const folder = "..";
 let count = 0;
 for await (const file of glob.scan(folder)) {
-  const nodeModulePath = file.split("node_modules/").at(-1);
-  if (nodeModulePath) {
+  const isNodeModule = file.includes("node_modules/");
+  const nodeModulePath = file.split("node_modules/").at(-1)!;
+  if (isNodeModule) {
     if (nodeModules.has(nodeModulePath)) continue;
   } else {
     if (otherFiles.has(file)) continue;
@@ -35,7 +36,7 @@ for await (const file of glob.scan(folder)) {
   let eq = false;
   let hasParsingError = false;
   try {
-    eq = await compareCode(code, file, process.argv[2] !== undefined);
+    eq = await compareCode(code, file);
   } catch (e) {
     console.log(e);
     hasParsingError = true;
@@ -43,10 +44,10 @@ for await (const file of glob.scan(folder)) {
   if (hasParsingError) continue;
   if (eq) {
     count++;
-    if (nodeModulePath) {
+    if (isNodeModule) {
       nodeModules.add(nodeModulePath);
     } else {
-      otherFiles.delete(file);
+      otherFiles.add(file);
     }
   } else {
     save();

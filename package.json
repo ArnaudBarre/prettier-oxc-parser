@@ -1,22 +1,29 @@
 {
   "name": "prettier-oxc-parser",
   "type": "module",
+  "version": "0.1.0",
   "private": true,
+  "scripts": {
+    "build": "scripts/bundle.ts",
+    "generate-visitor-keys": "scripts/generate-visitor-keys.ts",
+    "prettier": "prettier --check '**/*.{ts,tsx,json,md}'"
+  },
   "peerDependencies": {
-    "prettier": "^3"
+    "prettier": "^3.5.3"
   },
   "dependencies": {
-    "@typescript-eslint/parser": "^8.31.0",
-    "@typescript-eslint/typescript-estree": "^8.31.0",
-    "oxc-parser": "^0.66.0"
+    "oxc-parser": "^0.67.0"
   },
-  "prettier": {},
+  "prettier": {
+    "plugins": [
+      "./dist/index.js"
+    ]
+  },
   "devDependencies": {
-    "@babel/generator": "7.27.0",
-    "@babel/parser": "7.27.0",
-    "@types/babel__generator": "^7.27.0",
-    "@types/bun": "^1.2.10",
-    "@typescript-eslint/types": "^8.31.0",
+    "@types/bun": "^1.2.11",
+    "@typescript-eslint/parser": "^8.31.1",
+    "@typescript-eslint/typescript-estree": "^8.31.1",
+    "@typescript-eslint/types": "^8.31.1",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3"
   }

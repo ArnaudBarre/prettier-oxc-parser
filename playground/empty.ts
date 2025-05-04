@@ -1,10 +1,9 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import { compareCode } from "./compare-code.ts";
 
 await compareCode(
   `
-export type PositiveInfinity = 1e999;
+type Foo = Bar
 `,
   "file.ts",
-  true,
 );
