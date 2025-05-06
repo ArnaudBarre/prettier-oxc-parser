@@ -7,24 +7,35 @@ import { defaultPlugin } from "./defaultPlugin.ts";
 import { readJson, saveJson } from "./json.ts";
 import { execSync } from "node:child_process";
 
-export const compareCode = async (code: string, filename: string) => {
+export const compareCode = async (
+  code: string,
+  filename: string,
+  shouldSkip?: (node: any) => string | false,
+): Promise<boolean | string> => {
   let withDefaultPlugin: string;
   try {
     withDefaultPlugin = await format(code, {
       filepath: filename,
       plugins: [defaultPlugin],
     });
+    if (shouldSkip) {
+      const skipReason = shouldSkip(readJson("default-ast"));
+      if (skipReason) return skipReason;
+    }
   } catch {
-    console.log("Can't parse code");
-    // If the code is not parsable, we can't compare it
-    return true;
+    return "TS can't parse code";
   }
 
-  const withOxcPlugin = await format(code, {
-    filepath: filename,
-    plugins: [plugin],
-  });
-  
+  let withOxcPlugin: string;
+  try {
+    withOxcPlugin = await format(code, {
+      filepath: filename,
+      plugins: [plugin],
+    });
+  } catch {
+    return "Oxc can't parse code";
+  }
+
   if (withOxcPlugin === withDefaultPlugin) return true;
 
   writeFileSync("tmp/default-plugin.ts", withDefaultPlugin);
