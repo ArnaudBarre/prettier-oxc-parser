@@ -12,6 +12,6 @@ const parser: Parser = {
 };
 
 export const parsers: Plugin["parsers"] = {
-  javascript: parser,
+  babel: parser,
   typescript: parser,
 };

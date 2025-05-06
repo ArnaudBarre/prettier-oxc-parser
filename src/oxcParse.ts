@@ -15,6 +15,7 @@ export const oxcParse = (code: string, filename: string) => {
   });
 
   if (result.errors.length) throw new Error(result.errors[0].message);
+  const isTS = filename.endsWith(".ts") || filename.endsWith(".tsx");
 
   const program = result.program as unknown as Program & {
     comments: typeof result.comments;
@@ -26,14 +27,13 @@ export const oxcParse = (code: string, filename: string) => {
     program.end = code.length;
   }
 
-  if (program.hashbang) {
+  if (program.hashbang && isTS) {
     program.comments.unshift({
       type: "Line",
       start: 0,
       end: program.hashbang.end,
       value: program.hashbang.value,
     });
-    deleteProp(program, "hashbang");
   }
 
   for (const comment of program.comments) addLoc(comment);
@@ -94,9 +94,6 @@ const addLoc = (node: any) => {
 
 const setProp = (node: Node, key: string, value: any) => {
   (node as any)[key] = value;
-};
-const deleteProp = <T>(node: T, key: keyof T) => {
-  delete node[key];
 };
 
 const isUnbalancedLogicalTree = (

@@ -11,10 +11,11 @@ export const visitNode = (node: any, fn: (node: Node) => Node) => {
   }
 
   const keys = visitorKeys[node.type];
-  if (!keys) return node;
 
-  for (const key of keys) {
-    node[key] = visitNode(node[key], fn);
+  if (keys) {
+    for (const key of keys) {
+      node[key] = visitNode(node[key], fn);
+    }
   }
 
   return fn(node) ?? node;

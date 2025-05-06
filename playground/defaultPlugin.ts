@@ -1,9 +1,25 @@
 import type { Plugin } from "prettier";
+import babelParser from "prettier/plugins/babel";
 import typescriptParser from "prettier/plugins/typescript";
 import { saveJson } from "./json.ts";
 
 export const defaultPlugin: Plugin = {
   parsers: {
+    babel: {
+      ...babelParser.parsers.babel,
+      parse: (text, options) => {
+        const ast = babelParser.parsers.babel.parse(text, options);
+        saveJson("default-ast", {
+          ...ast.program,
+          comments: ast.comments,
+        }, (k, v) => {
+          if (k === "loc") return undefined;
+          if (k === "range") return undefined;
+          return v;
+        });
+        return ast;
+      },
+    },
     typescript: {
       ...typescriptParser.parsers.typescript,
       parse: (text, options) => {

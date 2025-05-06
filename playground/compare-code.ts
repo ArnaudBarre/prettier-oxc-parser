@@ -19,15 +19,16 @@ export const compareCode = async (code: string, filename: string) => {
     // If the code is not parsable, we can't compare it
     return true;
   }
-  writeFileSync("tmp/default-plugin.ts", withDefaultPlugin);
 
   const withOxcPlugin = await format(code, {
     filepath: filename,
     plugins: [plugin],
   });
-  writeFileSync("tmp/oxc-plugin.ts", withOxcPlugin);
-
+  
   if (withOxcPlugin === withDefaultPlugin) return true;
+
+  writeFileSync("tmp/default-plugin.ts", withDefaultPlugin);
+  writeFileSync("tmp/oxc-plugin.ts", withOxcPlugin);
 
   console.log("❌");
   try {
@@ -36,7 +37,10 @@ export const compareCode = async (code: string, filename: string) => {
       { stdio: "inherit" },
     );
   } catch {}
-  saveJson("oxc-ast-updated", oxcParse(code, filename));
+  saveJson("oxc-ast-updated", oxcParse(code, filename), (k, v) => {
+    if (k === "loc") return undefined;
+    return v;
+  });
   compareAst(readJson("oxc-ast-updated"), readJson("default-ast"));
 
   return false;

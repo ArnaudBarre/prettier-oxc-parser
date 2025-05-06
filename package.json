@@ -12,7 +12,7 @@
     "prettier": "^3.5.3"
   },
   "dependencies": {
-    "oxc-parser": "^0.67.0"
+    "oxc-parser": "0.68.1"
   },
   "prettier": {
     "plugins": [

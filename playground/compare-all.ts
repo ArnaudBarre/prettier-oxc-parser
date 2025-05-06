@@ -1,53 +1,36 @@
-#!/usr/bin/env bun
-import { Glob } from "bun";
+#!/usr/bin/env node
+import { globSync } from "node:fs";
 import { existsSync, readFileSync } from "node:fs";
 import { compareCode } from "./compare-code.ts";
 import { saveJson } from "./json.ts";
-
-const glob = new Glob(process.argv[2] ?? "**/*.{js,jsx,ts,tsx}");
 
 const currentState = existsSync("tmp/files.json")
   ? JSON.parse(readFileSync("tmp/files.json", "utf-8"))
   : { nodeModules: [], otherFiles: [] };
 
 const nodeModules = new Set<string>(currentState.nodeModules);
-const otherFiles = new Set<string>(currentState.otherFiles);
-const initialCount = nodeModules.size + otherFiles.size;
+const initialCount = nodeModules.size + currentState.otherFiles.length;
 
 const save = () => {
   saveJson("files", {
     nodeModules: [...nodeModules],
-    otherFiles: [...otherFiles],
+    otherFiles: currentState.otherFiles,
   });
 };
 
-const folder = "..";
 let count = 0;
-for await (const file of glob.scan(folder)) {
+for (const file of globSync("../**/*.{js,jsx,ts,tsx}")) {
   const isNodeModule = file.includes("node_modules/");
   const nodeModulePath = file.split("node_modules/").at(-1)!;
-  if (isNodeModule) {
-    if (nodeModules.has(nodeModulePath)) continue;
-  } else {
-    if (otherFiles.has(file)) continue;
-  }
+  if (isNodeModule && nodeModules.has(nodeModulePath)) continue;
   console.log(file);
-  const code = readFileSync(`${folder}/${file}`, "utf-8");
-  let eq = false;
-  let hasParsingError = false;
-  try {
-    eq = await compareCode(code, file);
-  } catch (e) {
-    console.log(e);
-    hasParsingError = true;
-  }
-  if (hasParsingError) continue;
+  const eq = await compareCode(readFileSync(file, "utf-8"), file);
   if (eq) {
     count++;
     if (isNodeModule) {
       nodeModules.add(nodeModulePath);
     } else {
-      otherFiles.add(file);
+      currentState.otherFiles.push(file);
     }
   } else {
     save();
