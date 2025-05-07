@@ -9,14 +9,20 @@ export const defaultPlugin: Plugin = {
       ...babelParser.parsers.babel,
       parse: (text, options) => {
         const ast = babelParser.parsers.babel.parse(text, options);
-        saveJson("default-ast", {
-          ...ast.program,
-          comments: ast.comments,
-        }, (k, v) => {
-          if (k === "loc") return undefined;
-          if (k === "range") return undefined;
-          return v;
-        });
+        saveJson(
+          "default-ast",
+          {
+            ...ast.program,
+            comments: ast.comments.map((c: any) =>
+              c.type === "CommentBlock" ? { ...c, type: "Block" } : c,
+            ),
+          },
+          (k, v) => {
+            if (k === "loc") return undefined;
+            if (k === "range") return undefined;
+            return v;
+          },
+        );
         return ast;
       },
     },

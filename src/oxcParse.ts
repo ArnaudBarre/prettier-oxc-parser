@@ -1,5 +1,6 @@
 import {
   parseSync,
+  type Comment,
   type LogicalExpression,
   type Node,
   type Program,
@@ -36,6 +37,7 @@ export const oxcParse = (code: string, filename: string) => {
     });
   }
 
+  mergeNestledBlockComments(program.comments);
   for (const comment of program.comments) addLoc(comment);
 
   return visitNode(program, (node: Node): any => {
@@ -61,6 +63,23 @@ export const oxcParse = (code: string, filename: string) => {
       case "TSIntersectionType":
         // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L141-L146
         if (node.types.length === 1) return node.types[0];
+        break;
+
+      // https://github.com/prettier/prettier/blob/main/src/language-js/loc.js#L15-L19
+      case "ClassExpression":
+      case "ClassDeclaration":
+        if (node.decorators?.length) node.start = node.decorators[0].start;
+        break;
+      case "ExportNamedDeclaration":
+        const decl = node.declaration;
+        if (!decl) break;
+        if (
+          (decl.type === "ClassDeclaration" ||
+            decl.type === "ClassExpression") &&
+          decl.decorators?.length
+        ) {
+          node.start = decl.decorators[0].start;
+        }
         break;
 
       case "TSMappedType":
@@ -101,7 +120,6 @@ const isUnbalancedLogicalTree = (
 ): node is LogicalExpression & { right: LogicalExpression } =>
   node.right.type === "LogicalExpression" &&
   node.operator === node.right.operator;
-
 const rebalanceLogicalTree = (node: LogicalExpression): LogicalExpression => {
   if (!isUnbalancedLogicalTree(node)) return node;
 
@@ -120,4 +138,28 @@ const rebalanceLogicalTree = (node: LogicalExpression): LogicalExpression => {
     start: node.start,
     end: node.end,
   });
+};
+
+// https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L155
+const mergeNestledBlockComments = (comments: Comment[]) => {
+  for (let i = comments.length - 1; i > 0; i--) {
+    const followingComment = comments[i];
+    const comment = comments[i - 1];
+
+    if (
+      comment.end === followingComment.start &&
+      comment.type === "Block" &&
+      followingComment.type === "Block" &&
+      isDocLikeBlockComment(comment) &&
+      isDocLikeBlockComment(followingComment)
+    ) {
+      comments.splice(i, 1);
+      comment.value += "*//*" + followingComment.value;
+      comment.end = followingComment.end;
+    }
+  }
+};
+const isDocLikeBlockComment = (comment: Comment) => {
+  const lines = `*${comment.value}*`.split("\n");
+  return lines.length > 1 && lines.every((line) => line.trimStart()[0] === "*");
 };

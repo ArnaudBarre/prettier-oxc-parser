@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import { compareCode } from "./compare-code.ts";
 
-await compareCode(
+const result = await compareCode(
   `
 type Foo = Bar
 `,
   "file.ts",
 );
+
+if (typeof result === "string") console.log(result);
