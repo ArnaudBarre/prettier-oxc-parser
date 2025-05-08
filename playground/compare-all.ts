@@ -73,6 +73,14 @@ const shouldSkip = (node: any): string | false => {
     // await(0)
     return "await as call expression";
   }
+  if (
+    node.type === "AssignmentExpression" &&
+    node.left.type === "ObjectExpression"
+  ) {
+    // https://github.com/oxc-project/oxc/issues/10899
+    // ({}) = x
+    return "Invalid left-hand side in assignment";
+  }
 
   for (const key in node) {
     if (typeof node[key] !== "object") continue;

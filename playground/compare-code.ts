@@ -36,23 +36,32 @@ export const compareCode = async (
     return "Oxc can't parse code";
   }
 
-  if (withOxcPlugin === withDefaultPlugin) return true;
+  const eq = withOxcPlugin === withDefaultPlugin;
+  if (eq && shouldSkip) return true;
 
   writeFileSync("tmp/default-plugin.ts", withDefaultPlugin);
   writeFileSync("tmp/oxc-plugin.ts", withOxcPlugin);
 
-  console.log("❌");
-  try {
-    execSync(
-      `git diff --no-index --word-diff tmp/oxc-plugin.ts tmp/default-plugin.ts`,
-      { stdio: "inherit" },
-    );
-  } catch {}
-  saveJson("oxc-ast-updated", oxcParse(code, filename), (k, v) => {
-    if (k === "loc") return undefined;
-    return v;
-  });
+  if (!eq) {
+    console.log("❌");
+    try {
+      execSync(
+        `git diff --no-index --word-diff tmp/oxc-plugin.ts tmp/default-plugin.ts`,
+        { stdio: "inherit" },
+      );
+    } catch {}
+  }
+  saveJson(
+    "oxc-ast-updated",
+    // Internally prettier does remove \r, so we need to remove them to compare ast locations
+    // https://github.com/prettier/prettier/blob/529095ac88a1e741f7542b6215cb653b93eda462/src/main/core.js#L284
+    oxcParse(code.replaceAll("\r", ""), filename),
+    (k, v) => {
+      if (k === "loc") return undefined;
+      return v;
+    },
+  );
   compareAst(readJson("oxc-ast-updated"), readJson("default-ast"));
 
-  return false;
+  return eq;
 };

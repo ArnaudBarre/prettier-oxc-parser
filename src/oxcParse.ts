@@ -19,7 +19,7 @@ export const oxcParse = (code: string, filename: string) => {
   const isTS = filename.endsWith(".ts") || filename.endsWith(".tsx");
 
   const program = result.program as unknown as Program & {
-    comments: typeof result.comments;
+    comments: Comment[];
   };
   setProp(program, "comments", result.comments);
   // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L186-L190

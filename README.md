@@ -12,3 +12,10 @@ $ yarn add -D prettier-oxc-parser
 $ pnpm install -D prettier-oxc-parser
 $ bun add -D prettier-oxc-parser
 ```
+
+## Caveats
+
+Some subtitle differences have been noticed and are, IMO, bugs in Prettier:
+
+- Line breaks for multi-assginement statements can differ for JS files (prettier#17437)[https://github.com/prettier/prettier/issues/17437]
+- Comments in if/else blocks without brackets can change the output (prettier#17449)[https://github.com/prettier/prettier/issues/17449]

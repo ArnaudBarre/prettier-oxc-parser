@@ -34,10 +34,14 @@ export const defaultPlugin: Plugin = {
         saveJson("default-ast", ast, (k, v) => {
           if (k === "loc") return undefined;
           if (typeof v === "object" && v && v.range) {
-            const { type, range, ...rest } = v;
+            const start = v.range[0];
+            const end = v.range[1];
+            // Remove line and column from loc because of https://github.com/prettier/prettier/issues/17449
+            v.loc = { start, end };
+            const { type, range, loc, ...rest } = v;
             return type
-              ? { type, start: range[0], end: range[1], ...rest }
-              : { start: range[0], end: range[1], ...rest };
+              ? { type, start, end, ...rest }
+              : { start, end, ...rest };
           }
           return v;
         });
