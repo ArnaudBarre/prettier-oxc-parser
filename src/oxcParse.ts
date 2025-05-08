@@ -68,8 +68,11 @@ export const oxcParse = (code: string, filename: string) => {
       // https://github.com/prettier/prettier/blob/main/src/language-js/loc.js#L15-L19
       case "ClassExpression":
       case "ClassDeclaration":
-        if (node.decorators?.length) node.start = node.decorators[0].start;
+        if (node.decorators?.length) {
+          node.start = Math.min(node.decorators[0].start, node.start);
+        }
         break;
+      case "ExportDefaultDeclaration":
       case "ExportNamedDeclaration":
         const decl = node.declaration;
         if (!decl) break;
@@ -78,7 +81,7 @@ export const oxcParse = (code: string, filename: string) => {
             decl.type === "ClassExpression") &&
           decl.decorators?.length
         ) {
-          node.start = decl.decorators[0].start;
+          node.start = Math.min(decl.decorators[0].start, node.start);
         }
         break;
 

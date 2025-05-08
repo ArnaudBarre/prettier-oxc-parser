@@ -8,4 +8,4 @@ type Foo = Bar
   "file.ts",
 );
 
-if (typeof result === "string") console.log(result);
+console.log(typeof result === "string" ? result : result ? "OK" : "KO");
