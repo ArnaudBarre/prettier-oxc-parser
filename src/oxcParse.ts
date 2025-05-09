@@ -5,6 +5,7 @@ import {
   type Node,
   type Program,
   type TSTypeParameter,
+  rawTransferSupported,
 } from "oxc-parser";
 import { visitNode } from "./visitNode.ts";
 
@@ -12,7 +13,7 @@ export const oxcParse = (code: string, filename: string) => {
   const result = parseSync(filename, code, {
     preserveParens: false,
     // @ts-expect-error
-    experimentalRawTransfer: true,
+    experimentalRawTransfer: rawTransferSupported(),
   });
 
   if (result.errors.length) throw new Error(result.errors[0].message);

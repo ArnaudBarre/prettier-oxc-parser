@@ -84,6 +84,21 @@ const shouldSkip = (node: any): string | false => {
     // ({}) = x
     return "Invalid left-hand side in assignment";
   }
+  if (node.type === "Block" && node.value.includes("@type")) {
+    // Keeping same bahaviour as Babel for would requires keeping parenthesis expressions
+    // and then ommiting them expect when a comment is attached to an ansestor.
+    // This could be done later on.
+    return "Type cast comment";
+  }
+  if (node.type === "Program" && node.comments.at(0)?.value.includes("@flow")) {
+    return "Flow";
+  }
+  if (node.type === "ClassProperty" && node.decorators?.length) {
+    return "ClassProperty.decorators";
+  }
+  if (node.directives?.some((it: any) => it.value.value === "")) {
+    return "Empty directive";
+  }
 
   for (const key in node) {
     if (typeof node[key] !== "object") continue;
@@ -97,16 +112,21 @@ const shouldSkip = (node: any): string | false => {
   }
   return false;
 };
+const skipFiles = [
+  // https://github.com/prettier/prettier/issues/17457
+  "monaco-editor/min/vs/editor/editor.main.js",
+  // Weird comment handling around class method, not reported to Prettier
+  // Minimal repro: class Foo {bar(/* Comment */\n) {}}
+  "markdown-it/dist/markdown-it.js",
+];
 
 for (const file of currentState.remaining.slice()) {
   console.log(file);
   try {
     if (statSync(file).isFile()) {
-      const eq = await compareCode(
-        readFileSync(file, "utf-8"),
-        file,
-        shouldSkip,
-      );
+      const eq = skipFiles.some((p) => file.endsWith(p))
+        ? "Block list"
+        : await compareCode(readFileSync(file, "utf-8"), file, shouldSkip);
       if (eq === false) throw new Error("Not equal");
       if (typeof eq === "string") {
         currentState.skipped[eq] ??= 0;

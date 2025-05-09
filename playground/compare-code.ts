@@ -18,12 +18,13 @@ export const compareCode = async (
       filepath: filename,
       plugins: [defaultPlugin],
     });
-    if (shouldSkip) {
-      const skipReason = shouldSkip(readJson("default-ast"));
-      if (skipReason) return skipReason;
-    }
   } catch {
-    return "TS can't parse code";
+    return "Default plugin can't parse code";
+  }
+
+  if (shouldSkip) {
+    const skipReason = shouldSkip(readJson("default-ast"));
+    if (skipReason) return skipReason;
   }
 
   let withOxcPlugin: string;
@@ -33,7 +34,7 @@ export const compareCode = async (
       plugins: [plugin],
     });
   } catch {
-    return "Oxc can't parse code";
+    return "Oxc plugin can't parse code";
   }
 
   const eq = withOxcPlugin === withDefaultPlugin;

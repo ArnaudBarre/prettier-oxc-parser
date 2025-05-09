@@ -13,13 +13,23 @@ export const defaultPlugin: Plugin = {
           "default-ast",
           {
             ...ast.program,
-            comments: ast.comments.map((c: any) =>
-              c.type === "CommentBlock" ? { ...c, type: "Block" } : c,
-            ),
+            comments: ast.comments.map((c: any) => ({
+              ...c,
+              type: c.type.slice(7),
+            })),
           },
           (k, v) => {
             if (k === "loc") return undefined;
             if (k === "range") return undefined;
+            if (!v || typeof v !== "object") return v;
+            if (v.type === "BooleanLiteral") {
+              // https://github.com/prettier/prettier/issues/17437
+              v.type = "Literal";
+            }
+            if (v.loc) {
+              // Remove line and column from loc because of https://github.com/prettier/prettier/issues/17449
+              v.loc = { start: v.start, end: v.end };
+            }
             return v;
           },
         );

@@ -69,8 +69,12 @@ export const compareAst = (oxc: any, ts: any) => {
     }
   };
 
-  for (let i = 0; i < oxc.body.length; i++) {
-    compareNodes(oxc.body[i], ts.body[i], `body[${i}]`);
+  for (let i = 0; i < Math.max(oxc.body.length, ts.body.length); i++) {
+    if (!oxc.body[i] || !ts.body[i]) {
+      check(oxc.body[i], ts.body[i], `body[${i}]`);
+    } else {
+      compareNodes(oxc.body[i], ts.body[i], `body[${i}]`);
+    }
   }
 };
 
