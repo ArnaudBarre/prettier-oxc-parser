@@ -1,7 +1,5 @@
 # prettier-oxc-parser [![npm](https://img.shields.io/npm/v/prettier-oxc-parser)](https://www.npmjs.com/package/prettier-oxc-parser)
 
-WIP: Using rawTransfer is buggy (https://github.com/oxc-project/oxc/issues/10782) and not using currently gives the same speed as the default parser.
-
 Use [oxc](https://github.com/oxc-project/oxc) as a [Prettier](https://prettier.io/) parser for JavaScript and TypeScript.
 
 Requires Prettier >= 3.5.3
@@ -14,6 +12,8 @@ $ bun add -D prettier-oxc-parser
 ```
 
 ## Caveats
+
+Few remaining AST issues, which will be fixed in the next release of [oxc-parser](https://www.npmjs.com/package/oxc-parser), will make updates to your code if you use `declare module a.b`, `declare namespace a.b` (oxc#10901)[https://github.com/oxc-project/oxc/issues/10901] or `#privateProp in obj` (oxc#10839)[https://github.com/oxc-project/oxc/issues/10839].
 
 Some subtitle differences have been noticed and are, IMO, bugs in Prettier:
 

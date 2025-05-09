@@ -40,6 +40,7 @@ const shouldSkip = (node: any): string | false => {
     node.type === "TSModuleDeclaration" &&
     node.id?.type === "TSQualifiedName"
   ) {
+    // https://github.com/oxc-project/oxc/issues/10901
     // declare namespace firebase.app {}
     return "TSModuleDeclaration.TSQualifiedName";
   }
@@ -47,6 +48,8 @@ const shouldSkip = (node: any): string | false => {
     node.type === "TSModuleDeclaration" &&
     node.body?.type === "TSModuleDeclaration"
   ) {
+    // https://github.com/oxc-project/oxc/issues/10901
+    // But bundled TS-ESLint still outputs TSModuleDeclaration instead of TSQualifiedName
     // declare module abc.def.ghi {}
     return "TSModuleDeclaration.TSModuleDeclaration";
   }
