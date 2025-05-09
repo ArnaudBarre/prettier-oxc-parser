@@ -11,7 +11,6 @@ import { visitNode } from "./visitNode.ts";
 
 export const oxcParse = (code: string, filename: string) => {
   const result = parseSync(filename, code, {
-    preserveParens: false,
     // @ts-expect-error
     experimentalRawTransfer: rawTransferSupported(),
   });
@@ -41,6 +40,20 @@ export const oxcParse = (code: string, filename: string) => {
   mergeNestledBlockComments(program.comments);
   for (const comment of program.comments) addLoc(comment);
 
+  // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L55-L85
+  const startOffsetsOfTypeCastedNodes = isTS
+    ? []
+    : program.comments.map((c) =>
+        c.type === "Block" &&
+        c.value[0] === "*" &&
+        // TypeScript expects the type to be enclosed in curly brackets, however
+        // Closure Compiler accepts types in parens and even without any delimiters at all.
+        // That's why we just search for "@type" and "@satisfies".
+        /@(?:type|satisfies)\b/u.test(c.value)
+          ? c.end + 1
+          : 0,
+      );
+
   return visitNode(program, (node: Node): any => {
     addLoc(node);
     switch (node.type) {
@@ -65,6 +78,15 @@ export const oxcParse = (code: string, filename: string) => {
         // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L141-L146
         if (node.types.length === 1) return node.types[0];
         break;
+
+      case "ParenthesizedExpression":
+        if (isTS) return node.expression;
+        if (!startOffsetsOfTypeCastedNodes.includes(node.start)) {
+          return { ...node.expression, extra: { parenthesized: true } };
+        }
+        break;
+      case "TSParenthesizedType":
+        return node.typeAnnotation;
 
       // https://github.com/prettier/prettier/blob/main/src/language-js/loc.js#L15-L19
       case "ClassExpression":

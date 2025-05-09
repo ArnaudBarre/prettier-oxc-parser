@@ -33,7 +33,7 @@ const save = () => {
   saveJson("files", currentState);
 };
 
-const shouldSkip = (node: any): string | false => {
+const shouldSkip = (node: any, isJS: boolean): string | false => {
   if (!node) return false;
 
   if (
@@ -76,38 +76,42 @@ const shouldSkip = (node: any): string | false => {
     // await(0)
     return "await as call expression";
   }
-  if (
-    node.type === "AssignmentExpression" &&
-    node.left.type === "ObjectExpression"
-  ) {
-    // https://github.com/oxc-project/oxc/issues/10899
-    // ({}) = x
-    return "Invalid left-hand side in assignment";
-  }
-  if (node.type === "Block" && node.value.includes("@type")) {
-    // Keeping same bahaviour as Babel for would requires keeping parenthesis expressions
-    // and then ommiting them expect when a comment is attached to an ansestor.
-    // This could be done later on.
-    return "Type cast comment";
-  }
-  if (node.type === "Program" && node.comments.at(0)?.value.includes("@flow")) {
-    return "Flow";
-  }
-  if (node.type === "ClassProperty" && node.decorators?.length) {
-    return "ClassProperty.decorators";
-  }
-  if (node.directives?.some((it: any) => it.value.value === "")) {
-    return "Empty directive";
+
+  if (isJS) {
+    if (
+      node.type === "Program" &&
+      node.comments.some(
+        (c: any) => c.value.includes("@flow") || c.value.includes("@noflow"),
+      )
+    ) {
+      // Babel does some redirect to the flow parser that I'm not sure we can do as a plugin
+      return "Flow";
+    }
+    if (node.decorators?.length) {
+      // https://github.com/oxc-project/oxc/issues/10921
+      return "decorators";
+    }
+    if (node.directives?.some((it: any) => it.value.value === "")) {
+      // https://github.com/prettier/prettier/issues/17458
+      return "Empty directive";
+    }
+    if (
+      (node.type === "ImportDeclaration" || node.type === "ImportExpression") &&
+      node.phase === "source"
+    ) {
+      // Stage 2.7
+      return "Defered import evaluataion";
+    }
   }
 
   for (const key in node) {
     if (typeof node[key] !== "object") continue;
     if (Array.isArray(node[key])) {
       for (const item of node[key]) {
-        if (shouldSkip(item)) return shouldSkip(item);
+        if (shouldSkip(item, isJS)) return shouldSkip(item, isJS);
       }
-    } else if (shouldSkip(node[key])) {
-      return shouldSkip(node[key]);
+    } else if (shouldSkip(node[key], isJS)) {
+      return shouldSkip(node[key], isJS);
     }
   }
   return false;
@@ -126,7 +130,9 @@ for (const file of currentState.remaining.slice()) {
     if (statSync(file).isFile()) {
       const eq = skipFiles.some((p) => file.endsWith(p))
         ? "Block list"
-        : await compareCode(readFileSync(file, "utf-8"), file, shouldSkip);
+        : await compareCode(readFileSync(file, "utf-8"), file, (node) =>
+            shouldSkip(node, file.endsWith(".js") || file.endsWith(".jsx")),
+          );
       if (eq === false) throw new Error("Not equal");
       if (typeof eq === "string") {
         currentState.skipped[eq] ??= 0;
