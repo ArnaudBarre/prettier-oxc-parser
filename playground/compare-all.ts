@@ -13,7 +13,7 @@ const currentState: {
   : (() => {
       const nodeModules = new Set<string>();
       const remaining: string[] = [];
-      for (const file of globSync("../**/*.{ts,tsx}")) {
+      for (const file of globSync("../**/*.{js,jsx,ts,tsx}")) {
         const isNodeModule = file.includes("node_modules/");
         const nodeModulePath = file.split("node_modules/").at(-1)!;
         if (isNodeModule) {
@@ -53,34 +53,25 @@ const shouldSkip = (node: any, isJS: boolean): string | false => {
     // declare module abc.def.ghi {}
     return "TSModuleDeclaration.TSModuleDeclaration";
   }
-  if (node.type === "AccessorProperty" && (node.declare || node.readonly)) {
-    // https://github.com/oxc-project/oxc/issues/10837
-    // class Foo { declare accessor foo; }
-    return "declare accessor";
-  }
-  if (
-    node.type === "BinaryExpression" &&
-    node.operator === "in" &&
-    node.left.type === "PrivateIdentifier"
-  ) {
-    // https://github.com/oxc-project/oxc/issues/10839
-    // #name in other && true
-    return "PrivateIdentifier in";
-  }
-  if (
-    node.type === "CallExpression" &&
-    node.callee.type === "Identifier" &&
-    node.callee.name === "await"
-  ) {
-    // https://github.com/oxc-project/oxc/issues/10840
-    // await(0)
-    return "await as call expression";
-  }
 
   if (isJS) {
     if (
+      node.type === "AssignmentExpression" &&
+      node.left.type === "ParenthesizedExpression"
+    ) {
+      // https://github.com/oxc-project/oxc/issues/10929
+      return "AssignmentExpression.left is ParenthesizedExpression";
+    }
+    if (
+      node.type === "UpdateExpression" &&
+      node.argument.type === "ParenthesizedExpression"
+    ) {
+      // https://github.com/oxc-project/oxc/issues/10939
+      return "UpdateExpression.argument is ParenthesizedExpression";
+    }
+    if (
       node.type === "Program" &&
-      node.comments.some(
+      node.comments?.some(
         (c: any) => c.value.includes("@flow") || c.value.includes("@noflow"),
       )
     ) {
@@ -96,8 +87,17 @@ const shouldSkip = (node: any, isJS: boolean): string | false => {
       return "Empty directive";
     }
     if (
+      node.type === "OptionalMemberExpression" &&
+      node.object.type === "NumericLiteral"
+    ) {
+      // kindof related to https://github.com/prettier/prettier/issues/17457
+      // OptionalMemberExpression vs ChainExpression
+      // Minimal repro: 0?.valueOf
+      return "OptionalMemberExpression.object is NumericLiteral";
+    }
+    if (
       (node.type === "ImportDeclaration" || node.type === "ImportExpression") &&
-      node.phase === "source"
+      !!node.phase
     ) {
       // Stage 2.7
       return "Defered import evaluataion";
@@ -108,10 +108,12 @@ const shouldSkip = (node: any, isJS: boolean): string | false => {
     if (typeof node[key] !== "object") continue;
     if (Array.isArray(node[key])) {
       for (const item of node[key]) {
-        if (shouldSkip(item, isJS)) return shouldSkip(item, isJS);
+        const result = shouldSkip(item, isJS);
+        if (result) return result;
       }
-    } else if (shouldSkip(node[key], isJS)) {
-      return shouldSkip(node[key], isJS);
+    } else {
+      const result = shouldSkip(node[key], isJS);
+      if (result) return result;
     }
   }
   return false;
@@ -122,13 +124,30 @@ const skipFiles = [
   // Weird comment handling around class method, not reported to Prettier
   // Minimal repro: class Foo {bar(/* Comment */\n) {}}
   "markdown-it/dist/markdown-it.js",
+  "typescript/tests/baselines/reference/transformApi/transformsCorrectly.transformAddCommentToProperties.js",
+  "babel/packages/babel-parser/test/fixtures/comments/basic/class",
+  "exceljs",
+  // Comment between the type cast and parenthesis expression
+  // to complex to support for now
+  "comments-closure-typecast/comment-in-the-middle.js",
+  // Formatting relies on the comment node.leadingComments
+  "tests/format/js/class-comment/misc.js",
+  // Another comment handling difference between Babel & TS
+  // Minimal repro: ({ async ["g"] /* e */ () { } });
+  "test262/test/built-ins/Function/prototype/toString/",
+  // https://github.com/oxc-project/oxc/issues/10942
+  "swc-8253.js",
+  // https://github.com/oxc-project/oxc/issues/10942
+  "babel/packages/babel-plugin-transform-optional-chaining/test/fixtures/general/in-method-key",
+  // Non spec syntax (export default from)
+  "babel/packages/babel-parser/test/fixtures/experimental/export-extensions/default-default-asi/input.js",
 ];
 
 for (const file of currentState.remaining.slice()) {
   console.log(file);
   try {
     if (statSync(file).isFile()) {
-      const eq = skipFiles.some((p) => file.endsWith(p))
+      const eq = skipFiles.some((p) => file.includes(p))
         ? "Block list"
         : await compareCode(readFileSync(file, "utf-8"), file, (node) =>
             shouldSkip(node, file.endsWith(".js") || file.endsWith(".jsx")),

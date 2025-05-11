@@ -41,18 +41,21 @@ export const oxcParse = (code: string, filename: string) => {
   for (const comment of program.comments) addLoc(comment);
 
   // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L55-L85
-  const startOffsetsOfTypeCastedNodes = isTS
-    ? []
-    : program.comments.map((c) =>
-        c.type === "Block" &&
-        c.value[0] === "*" &&
+  const typeCastCommentsEnds: number[] = [];
+  if (!isTS) {
+    for (const comment of program.comments) {
+      if (
+        comment.type === "Block" &&
+        comment.value[0] === "*" &&
         // TypeScript expects the type to be enclosed in curly brackets, however
         // Closure Compiler accepts types in parens and even without any delimiters at all.
         // That's why we just search for "@type" and "@satisfies".
-        /@(?:type|satisfies)\b/u.test(c.value)
-          ? c.end + 1
-          : 0,
-      );
+        /@(?:type|satisfies)\b/u.test(comment.value)
+      ) {
+        typeCastCommentsEnds.push(comment.end);
+      }
+    }
+  }
 
   return visitNode(program, (node: Node): any => {
     addLoc(node);
@@ -81,7 +84,14 @@ export const oxcParse = (code: string, filename: string) => {
 
       case "ParenthesizedExpression":
         if (isTS) return node.expression;
-        if (!startOffsetsOfTypeCastedNodes.includes(node.start)) {
+        const closestTypeCastCommentEnd = typeCastCommentsEnds.findLast(
+          (end) => end <= node.start,
+        );
+        const keepTypeCast =
+          closestTypeCastCommentEnd !== undefined &&
+          // check that there are only white spaces between the comment and the parenthesis
+          code.slice(closestTypeCastCommentEnd, node.start).trim().length === 0;
+        if (!keepTypeCast) {
           return { ...node.expression, extra: { parenthesized: true } };
         }
         break;

@@ -6,13 +6,14 @@
   "scripts": {
     "build": "scripts/bundle.ts",
     "generate-visitor-keys": "scripts/generate-visitor-keys.ts",
-    "prettier": "prettier --check '**/*.{ts,tsx,json,md}'"
+    "prettier": "prettier --check '**/*.{ts,tsx,json,md}'",
+    "ci": "bun generate-visitor-keys --check && bun run build && bun prettier"
   },
   "peerDependencies": {
     "prettier": "^3.5.3"
   },
   "dependencies": {
-    "oxc-parser": "0.68.1"
+    "oxc-parser": "0.69.0"
   },
   "prettier": {
     "plugins": [
