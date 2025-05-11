@@ -21,6 +21,12 @@ Add the plugin to your Prettier config:
 }
 ```
 
+## Why?
+
+[oxc](https://github.com/oxc-project/oxc) is a fast, really fast. And with the addition of [raw transfer](https://github.com/oxc-project/oxc/pull/9516), the cost of passing the AST from Rust to JavaScript is close to 0. Raw transfer is only available in Node >= 22.
+
+On my work codebase, time to format ~800 TS(X) files went from 5.8s to 4.4s without raw transfer and 3.8s with raw transfer (50% faster). On that 3.8s, only 0.2s is spent on the parsing.
+
 ## Caveats
 
 Flow inside `.js` files via `@flow` pragma is not supported.
