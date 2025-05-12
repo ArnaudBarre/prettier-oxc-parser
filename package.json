@@ -5,9 +5,10 @@
   "private": true,
   "scripts": {
     "build": "scripts/bundle.ts",
+    "benchmark": "node benchmark/run.ts",
     "generate-visitor-keys": "scripts/generate-visitor-keys.ts",
     "prettier": "prettier --check '**/*.{ts,tsx,json,md}'",
-    "ci": "bun generate-visitor-keys --check && bun run build && bun prettier"
+    "ci": "bun generate-visitor-keys --check && tsc && bun run build && bun prettier"
   },
   "peerDependencies": {
     "prettier": "^3.5.3"
@@ -22,9 +23,7 @@
   },
   "devDependencies": {
     "@types/bun": "^1.2.11",
-    "@typescript-eslint/parser": "^8.31.1",
-    "@typescript-eslint/typescript-estree": "^8.31.1",
-    "@typescript-eslint/types": "^8.31.1",
+    "mitata": "^1.0.34",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3"
   }

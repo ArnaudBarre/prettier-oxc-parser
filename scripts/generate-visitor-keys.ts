@@ -12,10 +12,7 @@ const content = `/*!*
 export const visitorKeys: Record<string, string[] | undefined> = {
 ${Object.entries(visitorKeys)
   .filter(([, v]) => v?.length)
-  .concat([
-    ["ParenthesizedExpression", ["expression"]],
-    ["TSParenthesizedType", ["typeAnnotation"]],
-  ])
+  .concat([["ParenthesizedExpression", ["expression"]]])
   .map(([k, v]) => `  ${k}: [${v!.map((v) => `"${v}"`).join(", ")}],`)
   .join("\n")}
 };

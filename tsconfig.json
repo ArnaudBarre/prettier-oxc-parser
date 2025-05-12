@@ -1,6 +1,6 @@
 {
   "include": ["**/*.ts"],
-  "exclude": ["tmp/*.ts"],
+  "exclude": ["tmp", "benchmark/fixtures"],
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
