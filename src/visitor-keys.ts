@@ -141,5 +141,4 @@ export const visitorKeys: Record<string, string[] | undefined> = {
   TSTypeReference: ["typeName", "typeArguments"],
   TSUnionType: ["types"],
   ParenthesizedExpression: ["expression"],
-  TSParenthesizedType: ["typeAnnotation"],
 };
