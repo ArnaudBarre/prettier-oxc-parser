@@ -31,21 +31,26 @@ While Prettier with this plugin is far from the performances of pure native form
 
 For full benchmark results see [benchmark/report.md](benchmark/report.md) or run it yourself with `bun benchmark`.
 
-Averages when running on Apple M1 Pro with node 23.11
+Keep in mind that the timing are for "parse + format". When using oxc as a parser, ~90% of the time is spent of the format part.
+
+An interesting thing is that you can get a part of the performance boost for TS files by using `babel-ts` via [overrides](https://prettier.io/docs/configuration#setting-the-parser-options).
+
+Averages when running on Apple M1 Pro with node 23.11.
 
 ### JS(X)
 
 | File size | Small (1kb) | Medium (10kb) | Large (28kb) |
 | --------- | ----------- | ------------- | ------------ |
-| oxc       | `0.9 ms`    | `3.8 ms`      | `10.1 ms`    |
-| default   | `1.1 ms`    | `4.3 ms`      | `11.5 ms`    |
+| oxc       | `0.8 ms`    | `3.7 ms`      | `10.6 ms`    |
+| default   | `0.9 ms`    | `4.3 ms`      | `12.5 ms`    |
 
 ### TS(X)
 
 | File size | Small (1kb) | Medium (7kb) | Large (40kb) | TS Compiler |
 | --------- | ----------- | ------------ | ------------ | ----------- |
-| oxc       | `0.7 ms`    | `3.5 ms`     | `18.2 ms`    | ` 768.8 ms` |
-| default   | `1.2 ms`    | `5.8 ms`     | `31.8 ms`    | `1407.4 ms` |
+| oxc       | `0.6 ms`    | `3.5 ms`     | `17.6 ms`    | ` 727 ms`   |
+| babel-ts  | `0.8 ms`    | `4.9 ms`     | `23.6 ms`    | ` 965 ms`   |
+| default   | `1.1 ms`    | `5.8 ms`     | `30.6 ms`    | `1237 ms`   |
 
 ## Caveats
 

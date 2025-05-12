@@ -1,6 +1,6 @@
 import { readFile, readdir } from "node:fs/promises";
 import { bench, run, type k_state } from "mitata";
-import * as prettier from "prettier";
+import { format, type Options } from "prettier";
 import pkg from "../package.json" with { type: "json" };
 
 const JS_FIXTURES_DIR = "./benchmark/fixtures/js";
@@ -29,6 +29,7 @@ const mainResults = {
       ["TS Compiler", "2922"],
     ],
     oxc: [] as number[],
+    "babel-ts": [] as number[],
     default: [] as number[],
   },
 };
@@ -41,13 +42,13 @@ for (const file of await readdir(JS_FIXTURES_DIR)) {
   bench("$parser", function* (state: k_state) {
     const parser = state.get("parser");
 
-    const options = {
+    const options: Options = {
       filepath: file,
       parser: "babel",
       plugins: parser.startsWith("oxc") ? ["dist/index.js"] : [],
     };
 
-    yield async () => await prettier.format(CODE, options);
+    yield async () => await format(CODE, options);
   }).args("parser", ["oxc", "babel"]);
 
   const result = await run({ format: "markdown" });
@@ -69,20 +70,21 @@ for (const file of await readdir(TS_FIXTURES_DIR)) {
   bench("$parser", function* (state: k_state) {
     const parser = state.get("parser");
 
-    const options = {
+    const options: Options = {
       filepath: file,
-      parser: "typescript",
+      parser: parser === "babel-ts" ? "babel-ts" : "typescript",
       plugins: parser.startsWith("oxc") ? ["dist/index.js"] : [],
     };
 
-    yield async () => await prettier.format(CODE, options);
-  }).args("parser", ["oxc-ts", "typescript"]);
+    yield async () => await format(CODE, options);
+  }).args("parser", ["oxc-ts", "babel-ts", "typescript"]);
 
   const result = await run({ format: "markdown" });
   const [size] = file.split("-");
   if (mainResults.ts.keep.some(([_, s]) => s === size)) {
     mainResults.ts.oxc.push(result.benchmarks[0].runs[0].stats!.avg);
-    mainResults.ts.default.push(result.benchmarks[0].runs[1].stats!.avg);
+    mainResults.ts["babel-ts"].push(result.benchmarks[0].runs[1].stats!.avg);
+    mainResults.ts.default.push(result.benchmarks[0].runs[2].stats!.avg);
   }
   console.log("");
 }
@@ -99,14 +101,14 @@ function printGroup(group: typeof mainResults.js | typeof mainResults.ts) {
     "--",
     group.keep.map(() => "--"),
   );
-  printLine(
-    "oxc",
-    group.oxc.map((v, i) => `\`${(v / 1e6).toFixed(i === 4 ? 0 : 1)} ms\``),
-  );
-  printLine(
-    "default",
-    group.default.map((v, i) => `\`${(v / 1e6).toFixed(i === 4 ? 0 : 1)} ms\``),
-  );
+  const keys = Object.keys(group) as (keyof typeof group)[];
+  for (const key of keys) {
+    if (key === "keep") continue;
+    printLine(
+      key,
+      group[key].map((v, i) => `\`${(v / 1e6).toFixed(i === 3 ? 0 : 1)} ms\``),
+    );
+  }
 }
 
 console.log("");
