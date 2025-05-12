@@ -10,13 +10,16 @@ import {
 import { visitNode } from "./visitNode.ts";
 
 export const oxcParse = (code: string, filename: string) => {
+  const isTS = filename.endsWith(".ts") || filename.endsWith(".tsx");
   const result = parseSync(filename, code, {
+    // `babel` parser produces `ParenthesizedExpression` and `TSParenthesizedType`,
+    // but `typescript` parser doesn't
+    preserveParens: isTS ? false : true,
     // @ts-expect-error
     experimentalRawTransfer: rawTransferSupported(),
   });
 
   if (result.errors.length) throw new Error(result.errors[0].message);
-  const isTS = filename.endsWith(".ts") || filename.endsWith(".tsx");
 
   const program = result.program as unknown as Program & {
     comments: Comment[];
@@ -82,8 +85,8 @@ export const oxcParse = (code: string, filename: string) => {
         if (node.types.length === 1) return node.types[0];
         break;
 
+      // JS only
       case "ParenthesizedExpression":
-        if (isTS) return node.expression;
         const closestTypeCastCommentEnd = typeCastCommentsEnds.findLast(
           (end) => end <= node.start,
         );
@@ -95,8 +98,6 @@ export const oxcParse = (code: string, filename: string) => {
           return { ...node.expression, extra: { parenthesized: true } };
         }
         break;
-      case "TSParenthesizedType":
-        return node.typeAnnotation;
 
       // https://github.com/prettier/prettier/blob/main/src/language-js/loc.js#L15-L19
       case "ClassExpression":
