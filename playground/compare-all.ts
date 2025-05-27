@@ -36,38 +36,15 @@ const save = () => {
 const shouldSkip = (node: any, isJS: boolean): string | false => {
   if (!node) return false;
 
-  if (
-    node.type === "TSModuleDeclaration" &&
-    node.id?.type === "TSQualifiedName"
-  ) {
-    // https://github.com/oxc-project/oxc/issues/10901
-    // declare namespace firebase.app {}
-    return "TSModuleDeclaration.TSQualifiedName";
-  }
-  if (
-    node.type === "TSModuleDeclaration" &&
-    node.body?.type === "TSModuleDeclaration"
-  ) {
-    // https://github.com/oxc-project/oxc/issues/10901
-    // But bundled TS-ESLint still outputs TSModuleDeclaration instead of TSQualifiedName
-    // declare module abc.def.ghi {}
-    return "TSModuleDeclaration.TSModuleDeclaration";
-  }
-
   if (isJS) {
     if (
-      node.type === "AssignmentExpression" &&
-      node.left.type === "ParenthesizedExpression"
+      (node.type === "AssignmentExpression" &&
+        node.left.type === "ParenthesizedExpression") ||
+      (node.type === "UpdateExpression" &&
+        node.argument.type === "ParenthesizedExpression")
     ) {
       // https://github.com/oxc-project/oxc/issues/10929
       return "AssignmentExpression.left is ParenthesizedExpression";
-    }
-    if (
-      node.type === "UpdateExpression" &&
-      node.argument.type === "ParenthesizedExpression"
-    ) {
-      // https://github.com/oxc-project/oxc/issues/10939
-      return "UpdateExpression.argument is ParenthesizedExpression";
     }
     if (
       node.type === "Program" &&
@@ -90,9 +67,7 @@ const shouldSkip = (node: any, isJS: boolean): string | false => {
       node.type === "OptionalMemberExpression" &&
       node.object.type === "NumericLiteral"
     ) {
-      // kindof related to https://github.com/prettier/prettier/issues/17457
-      // OptionalMemberExpression vs ChainExpression
-      // Minimal repro: 0?.valueOf
+      // https://github.com/prettier/prettier/pull/17190
       return "OptionalMemberExpression.object is NumericLiteral";
     }
     if (
@@ -121,14 +96,15 @@ const shouldSkip = (node: any, isJS: boolean): string | false => {
 const skipFiles = [
   // https://github.com/prettier/prettier/issues/17457
   "monaco-editor/min/vs/editor/editor.main.js",
+  "prettier/tests/format/js/method-chain/issue-17457.js",
   // Weird comment handling around class method, not reported to Prettier
   // Minimal repro: class Foo {bar(/* Comment */\n) {}}
   "markdown-it/dist/markdown-it.js",
   "typescript/tests/baselines/reference/transformApi/transformsCorrectly.transformAddCommentToProperties.js",
   "babel/packages/babel-parser/test/fixtures/comments/basic/class",
   "exceljs",
-  // Comment between the type cast and parenthesis expression
-  // to complex to support for now
+  // Not supported in next Prettier release
+  // https://github.com/prettier/prettier/pull/17491/files#diff-d65e9461a57c55731ac473318c556bef2d7209b66c98d9c895edc4dc86bbe656L218
   "comments-closure-typecast/comment-in-the-middle.js",
   // Formatting relies on the comment node.leadingComments
   "tests/format/js/class-comment/misc.js",
@@ -137,7 +113,7 @@ const skipFiles = [
   "test262/test/built-ins/Function/prototype/toString/",
   // https://github.com/oxc-project/oxc/issues/10942
   "swc-8253.js",
-  // https://github.com/oxc-project/oxc/issues/10942
+  // https://github.com/prettier/prettier/issues/17467
   "babel/packages/babel-plugin-transform-optional-chaining/test/fixtures/general/in-method-key",
   // Non spec syntax (export default from)
   "babel/packages/babel-parser/test/fixtures/experimental/export-extensions/default-default-asi/input.js",

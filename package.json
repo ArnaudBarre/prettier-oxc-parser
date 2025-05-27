@@ -1,7 +1,7 @@
 {
   "name": "prettier-oxc-parser",
   "type": "module",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "build": "scripts/bundle.ts",
@@ -14,7 +14,7 @@
     "prettier": "^3.5.3"
   },
   "dependencies": {
-    "oxc-parser": "0.69.0"
+    "oxc-parser": "0.72.0"
   },
   "prettier": {
     "plugins": [
@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@types/bun": "^1.2.11",
+    "@typescript-eslint/visitor-keys": "^8.33.0",
     "mitata": "^1.0.34",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3"

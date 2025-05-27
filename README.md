@@ -56,11 +56,10 @@ Averages when running on Apple M1 Pro with node 23.11.
 
 Flow inside `.js` files via `@flow` pragma is not supported.
 
-Few remaining AST issues, which will be fixed in the next release of [oxc-parser](https://www.npmjs.com/package/oxc-parser), will make updates to your code if you use `declare module a.b`, `declare namespace a.b` [oxc#10901](https://github.com/oxc-project/oxc/issues/10901), decorators in JS files [oxc#10921](https://github.com/oxc-project/oxc/issues/10921) or `/** @type {number} */ (parent[prop]) = 1` [oxc#10929](https://github.com/oxc-project/oxc/issues/10929).
+Few remaining AST issues, which are prioritized by the oxc team, will make updates to your code if you use decorators in JS files [oxc#10921](https://github.com/oxc-project/oxc/issues/10921) or `/** @type {number} */ (parent[prop]) = 1` [oxc#10929](https://github.com/oxc-project/oxc/issues/10929).
 
-Some subtitle differences can appear in JS files and are, IMO, bugs in Prettier:
+Some subtitle differences can appear in JS files and are inconsistencies in Prettier that will be fixed in the next release of Prettier:
 
 - Line breaks for multi-assginement statements [prettier#17437](https://github.com/prettier/prettier/issues/17437)
 - Comments in if/else blocks without brackets [prettier#17449](https://github.com/prettier/prettier/issues/17449)
 - Line breaks for optional call statements [prettier#17457](https://github.com/prettier/prettier/issues/17457)
-- Empty directives [prettier#17458](https://github.com/prettier/prettier/issues/17458)
