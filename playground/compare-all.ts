@@ -55,10 +55,6 @@ const shouldSkip = (node: any, isJS: boolean): string | false => {
       // Babel does some redirect to the flow parser that I'm not sure we can do as a plugin
       return "Flow";
     }
-    if (node.decorators?.length) {
-      // https://github.com/oxc-project/oxc/issues/10921
-      return "decorators";
-    }
     if (node.directives?.some((it: any) => it.value.value === "")) {
       // https://github.com/prettier/prettier/issues/17458
       return "Empty directive";
@@ -94,6 +90,10 @@ const shouldSkip = (node: any, isJS: boolean): string | false => {
   return false;
 };
 const skipFiles = [
+  // https://github.com/oxc-project/oxc/issues/11723
+  "babel/packages/babel-parser/test/fixtures/typescript/types/intrinsic-identifier/input.ts",
+  "babel/packages/babel-parser/test/fixtures/typescript/type-only-import-export-specifiers/import-named-type-as-as/input.ts",
+  "babel/packages/babel-parser/test/fixtures/typescript/type-only-import-export-specifiers/export-named-type-as-as/input.ts",
   // https://github.com/prettier/prettier/issues/17457
   "monaco-editor/min/vs/editor/editor.main.js",
   "prettier/tests/format/js/method-chain/issue-17457.js",
@@ -111,10 +111,9 @@ const skipFiles = [
   // Another comment handling difference between Babel & TS
   // Minimal repro: ({ async ["g"] /* e */ () { } });
   "test262/test/built-ins/Function/prototype/toString/",
-  // https://github.com/oxc-project/oxc/issues/10942
-  "swc-8253.js",
-  // https://github.com/prettier/prettier/issues/17467
+  // https://github.com/prettier/prettier/pull/17486
   "babel/packages/babel-plugin-transform-optional-chaining/test/fixtures/general/in-method-key",
+  "prettier/tests/format/js/optional-chaining/as-key.js",
   // Non spec syntax (export default from)
   "babel/packages/babel-parser/test/fixtures/experimental/export-extensions/default-default-asi/input.js",
 ];

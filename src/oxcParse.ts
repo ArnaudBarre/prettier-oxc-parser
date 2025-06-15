@@ -25,7 +25,7 @@ export const oxcParse = (code: string, filename: string) => {
     comments: Comment[];
   };
   setProp(program, "comments", result.comments);
-  // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L228-L230
+  // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L225-L227
   if (program.type === "Program") {
     program.start = 0;
     program.end = code.length;
@@ -43,17 +43,19 @@ export const oxcParse = (code: string, filename: string) => {
   mergeNestledBlockComments(program.comments);
   for (const comment of program.comments) addLoc(comment);
 
+  let typeCastCommentsEnds: number[];
+
   return visitNode(program, (node: Node): any => {
     addLoc(node);
     switch (node.type) {
       case "LogicalExpression":
-        // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L120-L125
+        // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L90-95
         if (isUnbalancedLogicalTree(node)) {
           return rebalanceLogicalTree(node);
         }
         break;
       case "VariableDeclaration":
-        // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L153-L159
+        // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L124-130
         const lastDeclaration = node.declarations.at(-1);
         if (
           lastDeclaration?.init &&
@@ -64,27 +66,35 @@ export const oxcParse = (code: string, filename: string) => {
         break;
       case "TSUnionType":
       case "TSIntersectionType":
-        //github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L175-L180
-        https: if (node.types.length === 1) return node.types[0];
+        // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L146-L151
+        if (node.types.length === 1) return node.types[0];
         break;
 
       // JS only
       case "ParenthesizedExpression":
-        // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L103-L117
-        const closestTypeCastCommentEnd = program.comments.findLast(
-          (comment) => comment.end <= node.start,
+        // https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#L51-L88
+        if (!typeCastCommentsEnds) {
+          typeCastCommentsEnds = [];
+          for (const comment of program.comments) {
+            if (
+              comment.type === "Block" &&
+              comment.value[0] === "*" &&
+              // TypeScript expects the type to be enclosed in curly brackets, however
+              // Closure Compiler accepts types in parens and even without any delimiters at all.
+              // That's why we just search for "@type" and "@satisfies".
+              /@(?:type|satisfies)\b/u.test(comment.value)
+            ) {
+              typeCastCommentsEnds.push(comment.end);
+            }
+          }
+        }
+        const closestTypeCastCommentEnd = typeCastCommentsEnds.findLast(
+          (end) => end <= node.start,
         );
         const keepTypeCast =
           closestTypeCastCommentEnd !== undefined &&
-          closestTypeCastCommentEnd.type === "Block" &&
-          closestTypeCastCommentEnd.value[0] === "*" &&
           // check that there are only white spaces between the comment and the parenthesis
-          code.slice(closestTypeCastCommentEnd.end, node.start).trim()
-            .length === 0 &&
-          // TypeScript expects the type to be enclosed in curly brackets, however
-          // Closure Compiler accepts types in parens and even without any delimiters at all.
-          // That's why we just search for "@type" and "@satisfies".
-          /@(?:type|satisfies)\b/u.test(closestTypeCastCommentEnd.value);
+          code.slice(closestTypeCastCommentEnd, node.start).trim().length === 0;
         if (!keepTypeCast) {
           return { ...node.expression, extra: { parenthesized: true } };
         }
@@ -168,7 +178,7 @@ const rebalanceLogicalTree = (node: LogicalExpression): LogicalExpression => {
   });
 };
 
-// https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/index.js#59
+// https://github.com/prettier/prettier/blob/main/src/language-js/parse/postprocess/merge-nestled-jsdoc-comments.js
 const mergeNestledBlockComments = (comments: Comment[]) => {
   for (let i = comments.length - 1; i > 0; i--) {
     const followingComment = comments[i];
