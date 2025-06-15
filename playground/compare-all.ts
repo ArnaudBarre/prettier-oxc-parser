@@ -55,10 +55,6 @@ const shouldSkip = (node: any, isJS: boolean): string | false => {
       // Babel does some redirect to the flow parser that I'm not sure we can do as a plugin
       return "Flow";
     }
-    if (node.decorators?.length) {
-      // https://github.com/oxc-project/oxc/issues/10921
-      return "decorators";
-    }
     if (node.directives?.some((it: any) => it.value.value === "")) {
       // https://github.com/prettier/prettier/issues/17458
       return "Empty directive";
@@ -94,27 +90,18 @@ const shouldSkip = (node: any, isJS: boolean): string | false => {
   return false;
 };
 const skipFiles = [
-  // https://github.com/prettier/prettier/issues/17457
-  "monaco-editor/min/vs/editor/editor.main.js",
-  "prettier/tests/format/js/method-chain/issue-17457.js",
   // Weird comment handling around class method, not reported to Prettier
   // Minimal repro: class Foo {bar(/* Comment */\n) {}}
   "markdown-it/dist/markdown-it.js",
-  "typescript/tests/baselines/reference/transformApi/transformsCorrectly.transformAddCommentToProperties.js",
+  "tests/baselines/reference/transformApi/transformsCorrectly.transformAddCommentToProperties.js",
   "babel/packages/babel-parser/test/fixtures/comments/basic/class",
   "exceljs",
-  // Not supported in next Prettier release
-  // https://github.com/prettier/prettier/pull/17491/files#diff-d65e9461a57c55731ac473318c556bef2d7209b66c98d9c895edc4dc86bbe656L218
-  "comments-closure-typecast/comment-in-the-middle.js",
-  // Formatting relies on the comment node.leadingComments
-  "tests/format/js/class-comment/misc.js",
-  // Another comment handling difference between Babel & TS
+  // Two comment handling differences between Babel & TS
   // Minimal repro: ({ async ["g"] /* e */ () { } });
+  "oxc/tasks/coverage/babel/packages/babel-parser/test/fixtures/comments/basic/class-method/input.js",
+  "oxc/tasks/coverage/babel/packages/babel-parser/test/fixtures/comments/basic/class-private-method/input.js",
+  "oxc/tasks/prettier_conformance/prettier/tests/format/js/class-comment/misc.js",
   "test262/test/built-ins/Function/prototype/toString/",
-  // https://github.com/oxc-project/oxc/issues/10942
-  "swc-8253.js",
-  // https://github.com/prettier/prettier/issues/17467
-  "babel/packages/babel-plugin-transform-optional-chaining/test/fixtures/general/in-method-key",
   // Non spec syntax (export default from)
   "babel/packages/babel-parser/test/fixtures/experimental/export-extensions/default-default-asi/input.js",
 ];
