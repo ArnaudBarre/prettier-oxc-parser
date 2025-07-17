@@ -2,7 +2,7 @@
 
 Use [oxc](https://github.com/oxc-project/oxc) as a [Prettier](https://prettier.io/) parser for JavaScript and TypeScript.
 
-**Requires Prettier >= 3.5.3**
+**Requires Prettier >= 3.6.2**
 
 ## Installation
 
@@ -33,31 +33,29 @@ For full benchmark results see [benchmark/report.md](benchmark/report.md) or run
 
 Keep in mind that the timing are for "parse + format". When using oxc as a parser, ~90% of the time is spent of the format part.
 
+On this benchmark, this plugin is faster than [@prettier/plugin-oxc](https://www.npmjs.com/package/@prettier/plugin-oxc) because the official one is using the async API without raw transfer. Benchmarking in real conditions is needed to know which one is better.
+
 An interesting thing is that you can get a part of the performance boost for TS files by using `babel-ts` via [overrides](https://prettier.io/docs/configuration#setting-the-parser-options).
 
-Averages when running on Apple M1 Pro with node 23.11.
+Averages when running on Apple M1 Pro with node 24.3.
 
 ### JS(X)
 
-| File size | Small (1kb) | Medium (10kb) | Large (28kb) |
-| --------- | ----------- | ------------- | ------------ |
-| oxc       | `0.8 ms`    | `3.7 ms`      | `10.6 ms`    |
-| default   | `0.9 ms`    | `4.3 ms`      | `12.5 ms`    |
+| File size            | Small (1kb) | Medium (10kb) | Large (28kb) |
+| -------------------- | ----------- | ------------- | ------------ |
+| prettier-oxc-parser  | `0.9 ms`    | `3.9 ms`      | `10.4 ms`    |
+| @prettier/plugin-oxc | `1.2 ms`    | `4.6 ms`      | `12.5 ms`    |
+| default              | `1.0 ms`    | `3.9 ms`      | `11.0 ms`    |
 
 ### TS(X)
 
-| File size | Small (1kb) | Medium (7kb) | Large (40kb) | TS Compiler |
-| --------- | ----------- | ------------ | ------------ | ----------- |
-| oxc       | `0.6 ms`    | `3.5 ms`     | `17.6 ms`    | ` 727 ms`   |
-| babel-ts  | `0.8 ms`    | `4.9 ms`     | `23.6 ms`    | ` 965 ms`   |
-| default   | `1.1 ms`    | `5.8 ms`     | `30.6 ms`    | `1237 ms`   |
+| File size            | Small (1kb) | Medium (7kb) | Large (40kb) | TS Compiler |
+| -------------------- | ----------- | ------------ | ------------ | ----------- |
+| prettier-oxc-parser  | `0.7 ms`    | `3.8 ms`     | `18.4 ms`    | `737 ms`    |
+| @prettier/plugin-oxc | `0.9 ms`    | `5.3 ms`     | `31.5 ms`    | `1132 ms`   |
+| babel-ts             | `0.8 ms`    | `4.3 ms`     | `20.6 ms`    | `848 ms`    |
+| default              | `1.2 ms`    | `5.6 ms`     | `27.8 ms`    | `1093 ms`   |
 
 ## Caveats
 
 Flow inside `.js` files via `@flow` pragma is not supported.
-
-Some subtitle differences can appear in JS files and are inconsistencies in Prettier that will be fixed in the next release of Prettier:
-
-- Line breaks for multi-assignment statements [prettier#17437](https://github.com/prettier/prettier/issues/17437)
-- Comments in if/else blocks without brackets [prettier#17449](https://github.com/prettier/prettier/issues/17449)
-- Line breaks for optional call statements [prettier#17457](https://github.com/prettier/prettier/issues/17457)
