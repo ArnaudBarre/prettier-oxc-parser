@@ -18,7 +18,8 @@ const mainResults = {
       ["Medium (10kb)", "0010"],
       ["Large (28kb)", "0028"],
     ],
-    oxc: [] as number[],
+    "prettier-oxc-parser": [] as number[],
+    "@prettier/plugin-oxc": [] as number[],
     default: [] as number[],
   },
   ts: {
@@ -28,7 +29,8 @@ const mainResults = {
       ["Large (40kb)", "0040"],
       ["TS Compiler", "2922"],
     ],
-    oxc: [] as number[],
+    "prettier-oxc-parser": [] as number[],
+    "@prettier/plugin-oxc": [] as number[],
     "babel-ts": [] as number[],
     default: [] as number[],
   },
@@ -44,18 +46,28 @@ for (const file of await readdir(JS_FIXTURES_DIR)) {
 
     const options: Options = {
       filepath: file,
-      parser: "babel",
-      plugins: parser.startsWith("oxc") ? ["dist/index.js"] : [],
+      parser: parser === "@prettier/plugin-oxc" ? "oxc" : "babel",
+      plugins:
+        parser === "prettier-oxc-parser"
+          ? ["dist/index.js"]
+          : parser === "@prettier/plugin-oxc"
+            ? ["@prettier/plugin-oxc"]
+            : [],
     };
 
     yield async () => await format(CODE, options);
-  }).args("parser", ["oxc", "babel"]);
+  }).args("parser", ["prettier-oxc-parser", "@prettier/plugin-oxc", "babel"]);
 
   const result = await run({ format: "markdown" });
   const [size] = file.split("-");
   if (mainResults.js.keep.some(([_, s]) => s === size)) {
-    mainResults.js.oxc.push(result.benchmarks[0].runs[0].stats!.avg);
-    mainResults.js.default.push(result.benchmarks[0].runs[1].stats!.avg);
+    mainResults.js["prettier-oxc-parser"].push(
+      result.benchmarks[0].runs[0].stats!.avg,
+    );
+    mainResults.js["@prettier/plugin-oxc"].push(
+      result.benchmarks[0].runs[1].stats!.avg,
+    );
+    mainResults.js.default.push(result.benchmarks[0].runs[2].stats!.avg);
   }
   console.log("");
 }
@@ -72,19 +84,39 @@ for (const file of await readdir(TS_FIXTURES_DIR)) {
 
     const options: Options = {
       filepath: file,
-      parser: parser === "babel-ts" ? "babel-ts" : "typescript",
-      plugins: parser.startsWith("oxc") ? ["dist/index.js"] : [],
+      parser:
+        parser === "babel-ts"
+          ? "babel-ts"
+          : parser === "@prettier/plugin-oxc"
+            ? "oxc-ts"
+            : "typescript",
+      plugins:
+        parser === "prettier-oxc-parser"
+          ? ["dist/index.js"]
+          : parser === "@prettier/plugin-oxc"
+            ? ["@prettier/plugin-oxc"]
+            : [],
     };
 
     yield async () => await format(CODE, options);
-  }).args("parser", ["oxc-ts", "babel-ts", "typescript"]);
+  }).args("parser", [
+    "prettier-oxc-parser",
+    "@prettier/plugin-oxc",
+    "babel-ts",
+    "typescript",
+  ]);
 
   const result = await run({ format: "markdown" });
   const [size] = file.split("-");
   if (mainResults.ts.keep.some(([_, s]) => s === size)) {
-    mainResults.ts.oxc.push(result.benchmarks[0].runs[0].stats!.avg);
-    mainResults.ts["babel-ts"].push(result.benchmarks[0].runs[1].stats!.avg);
-    mainResults.ts.default.push(result.benchmarks[0].runs[2].stats!.avg);
+    mainResults.ts["prettier-oxc-parser"].push(
+      result.benchmarks[0].runs[0].stats!.avg,
+    );
+    mainResults.ts["@prettier/plugin-oxc"].push(
+      result.benchmarks[0].runs[1].stats!.avg,
+    );
+    mainResults.ts["babel-ts"].push(result.benchmarks[0].runs[2].stats!.avg);
+    mainResults.ts.default.push(result.benchmarks[0].runs[3].stats!.avg);
   }
   console.log("");
 }
