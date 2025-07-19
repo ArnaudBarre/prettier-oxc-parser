@@ -2,6 +2,10 @@
 
 Use [oxc](https://github.com/oxc-project/oxc) as a [Prettier](https://prettier.io/) parser for JavaScript and TypeScript.
 
+This was an experiment before the official [@prettier/plugin-oxc](https://www.npmjs.com/package/@prettier/plugin-oxc) was released.
+
+In my testing, because the official plugin is not using [raw transfer](https://github.com/prettier/prettier/pull/17663), this plugin is still faster, but surprisingly, the speed difference vanishes when using [--experimental-cli](https://prettier.io/blog/2025/06/23/3.6.0#change-17151).
+
 **Requires Prettier >= 3.6.2**
 
 ## Installation
@@ -33,7 +37,7 @@ For full benchmark results see [benchmark/report.md](benchmark/report.md) or run
 
 Keep in mind that the timing are for "parse + format". When using oxc as a parser, ~90% of the time is spent of the format part.
 
-On this benchmark, this plugin is faster than [@prettier/plugin-oxc](https://www.npmjs.com/package/@prettier/plugin-oxc) because the official one is using the async API without raw transfer. Benchmarking in real conditions is needed to know which one is better.
+On this benchmark, this plugin is faster than [@prettier/plugin-oxc](https://www.npmjs.com/package/@prettier/plugin-oxc) because the official one is using the async API without raw transfer. On a real world TS codebase, the timing are the same with the experimental-cli but this plugin is faster without.
 
 An interesting thing is that you can get a part of the performance boost for TS files by using `babel-ts` via [overrides](https://prettier.io/docs/configuration#setting-the-parser-options).
 
